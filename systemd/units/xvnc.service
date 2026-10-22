@@ -1,0 +1,20 @@
+[Unit]
+Description=Virtual Network Computing (VNC) Server
+Documentation=man:Xvnc(1)
+After=dbus.service
+Wants=dbus.service
+
+[Service]
+Type=simple
+User=desktop
+Group=desktop
+Environment=DISPLAY=:1
+Environment=HOME=/home/desktop
+Environment=USER=desktop
+ExecStart=/usr/local/bin/start-xvnc.sh
+Restart=always
+RestartSec=2
+KillMode=control-group
+
+[Install]
+WantedBy=graphical.target

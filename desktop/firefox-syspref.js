@@ -1,0 +1,24 @@
+// System-wide Firefox defaults for the cloud desktop.
+pref("browser.shell.checkDefaultBrowser", false);
+pref("browser.aboutwelcome.enabled", false);
+pref("browser.startup.homepage_override.mstone", "ignore");
+pref("browser.startup.page", 1);
+pref("browser.startup.homepage", "file:///opt/desktop/welcome.html");
+pref("browser.newtabpage.enabled", false);
+pref("browser.newtabpage.activity-stream.feeds.section.topstories", false);
+pref("browser.newtabpage.activity-stream.showSponsored", false);
+pref("browser.newtabpage.activity-stream.showSponsoredTopSites", false);
+pref("datareporting.policy.dataSubmissionEnabled", false);
+pref("datareporting.healthreport.uploadEnabled", false);
+pref("toolkit.telemetry.enabled", false);
+pref("toolkit.telemetry.unified", false);
+pref("app.update.enabled", false);
+pref("app.update.auto", false);
+pref("extensions.update.enabled", false);
+pref("browser.tabs.warnOnClose", false);
+pref("browser.warnOnQuit", false);
+pref("browser.sessionstore.resume_from_crash", false);
+pref("layers.acceleration.disabled", true);
+pref("gfx.webrender.software", true);
+pref("media.hardware-video-decoding.enabled", false);
+pref("intl.locale.requested", "ar");

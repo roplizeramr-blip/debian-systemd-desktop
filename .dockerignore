@@ -1,0 +1,10 @@
+.git
+.github
+docs
+**/__pycache__
+**/*.pyc
+*.zip
+*.log
+README.md
+LICENSE
+START-HERE.txt

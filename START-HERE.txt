@@ -1,0 +1,51 @@
+مشروع Ubuntu Cloud Desktop
+==========================
+
+المسار:
+C:\Users\East-Sound\Desktop\ubuntu-systemd-desktop
+
+هذا المشروع كامل وجاهز للرفع على GitHub. لم يتم بناء الصورة محليًا
+لأن Docker/Podman غير مثبتين على الجهاز. البناء يتم عبر GitHub Actions
+أو عبر CranL مباشرة.
+
+الخطوات السريعة
+---------------
+1. ارفع المجلد إلى مستودع GitHub جديد.
+2. انتظر GitHub Actions حتى ينتهي بناء الصورة (أو استخدم CranL لبناء
+   Dockerfile مباشرة).
+3. أنشئ تطبيقًا على CranL:
+   - Port: 3000
+   - Health: /healthz
+   - Region: netherlands-1
+   - Image (إن استخدمت GHCR):
+     ghcr.io/<اسمك>/ubuntu-systemd-desktop:latest
+4. أضف المتغيرات:
+   NOVNC_PORT=3000
+   VNC_PORT=5901
+   VNC_RESOLUTION=1440x900
+   VNC_PW=كلمة-مرور-قوية-8-أحرف
+   TZ=Africa/Cairo
+   SYSTEMD_DETECT_VIRT=none
+   HIDE_CONTAINER=0
+5. افتح رابط التطبيق، اضغط Open Desktop، وأدخل كلمة مرور VNC.
+6. من داخل الطرفية غيّر كلمة مرور المستخدم:
+   passwd
+
+بيانات افتراضية
+---------------
+VNC password: Ubuntu26
+Linux user: desktop
+Linux password: ubuntu
+
+غيّرها قبل أي استخدام عام.
+
+ملاحظات مهمة
+------------
+- طبقة systemd توافقية وليست systemd الحقيقي.
+- لا تستخدم المشروع لتجاوز أنظمة حماية أو تراخيص.
+- البيانات داخل الحاوية مؤقتة؛ نزّل ملفاتك المهمة على جهازك.
+- راجع:
+  README.md
+  docs/REPORT.md
+  docs/DEPLOY-CRANL.md
+  docs/TESTING.md

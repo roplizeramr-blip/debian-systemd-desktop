@@ -1,0 +1,21 @@
+[Unit]
+Description=noVNC WebSocket Bridge
+Documentation=man:websockify(1)
+After=xvnc.service
+Requires=xvnc.service
+
+[Service]
+Type=simple
+User=desktop
+Group=desktop
+Environment=HOME=/home/desktop
+Environment=USER=desktop
+Environment=NOVNC_PORT=3000
+Environment=VNC_PORT=5901
+ExecStart=/usr/local/bin/start-novnc.sh
+Restart=always
+RestartSec=2
+KillMode=control-group
+
+[Install]
+WantedBy=graphical.target

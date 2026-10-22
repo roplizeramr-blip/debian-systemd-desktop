@@ -1,0 +1,24 @@
+[Unit]
+Description=XFCE Desktop Session
+Documentation=man:startxfce4(1)
+After=xvnc.service dbus.service
+Requires=xvnc.service
+Wants=dbus.service
+
+[Service]
+Type=simple
+User=desktop
+Group=desktop
+Environment=DISPLAY=:1
+Environment=HOME=/home/desktop
+Environment=USER=desktop
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+Environment=XDG_SESSION_TYPE=x11
+Environment=XDG_CURRENT_DESKTOP=XFCE
+ExecStart=/usr/local/bin/start-xfce.sh
+Restart=always
+RestartSec=2
+KillMode=control-group
+
+[Install]
+WantedBy=graphical.target
