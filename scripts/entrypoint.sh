@@ -3,7 +3,7 @@ set -Eeuo pipefail
 
 export VNC_PW="${VNC_PW:-Ubuntu26}"
 # Legacy VNC authentication uses at most 8 characters.  Truncate instead of
-# letting vncpasswd fail when a longer value is supplied.
+# letting tigervncpasswd fail when a longer value is supplied.
 if [ "${#VNC_PW}" -gt 8 ]; then
     VNC_PW="${VNC_PW:0:8}"
 fi
@@ -56,9 +56,9 @@ if [ -n "${DESKTOP_HOSTNAME:-}" ]; then
     printf '%s\n' "$DESKTOP_HOSTNAME" > /etc/hostname 2>/dev/null || true
 fi
 
-# VNC password.  vncpasswd stores a fixed-size obfuscated value, not the
+# VNC password.  tigervncpasswd stores a fixed-size obfuscated value, not the
 # plaintext password.
-printf '%s\n' "$VNC_PW" | vncpasswd -f > /home/desktop/.vnc/passwd
+printf '%s\n' "$VNC_PW" | tigervncpasswd -f > /home/desktop/.vnc/passwd
 chown desktop:desktop /home/desktop/.vnc/passwd
 chmod 0600 /home/desktop/.vnc/passwd
 

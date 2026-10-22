@@ -8,7 +8,7 @@ export VNC_RESOLUTION="${VNC_RESOLUTION:-1440x900}"
 
 mkdir -p "$HOME/.vnc"
 if [ ! -s "$HOME/.vnc/passwd" ]; then
-    printf '%s\n' "${VNC_PW:-Ubuntu26}" | vncpasswd -f > "$HOME/.vnc/passwd"
+    printf '%s\n' "${VNC_PW:-Ubuntu26}" | tigervncpasswd -f > "$HOME/.vnc/passwd"
     chmod 0600 "$HOME/.vnc/passwd"
 fi
 

@@ -25,7 +25,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         supervisor systemd \
         xfce4 xfce4-terminal xfce4-screenshooter xfce4-taskmanager xfce4-appfinder \
         thunar mousepad ristretto \
-        tigervnc-standalone-server tigervnc-common \
+        tigervnc-standalone-server tigervnc-common tigervnc-tools \
         novnc websockify python3-websockify \
         x11-xserver-utils x11-xkb-utils xauth xdg-utils desktop-file-utils \
         xfonts-base xfonts-utils adwaita-icon-theme \
