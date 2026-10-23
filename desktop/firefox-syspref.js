@@ -4,6 +4,8 @@
 // --- Startup and home page -------------------------------------------------
 pref("browser.shell.checkDefaultBrowser", false);
 pref("browser.aboutwelcome.enabled", false);
+pref("browser.preonboarding.enabled", false);
+pref("termsofuse.bypassNotification", true);
 pref("browser.startup.homepage_override.mstone", "ignore");
 pref("browser.startup.page", 1);
 pref("browser.startup.homepage", "file:///opt/desktop/welcome.html");
@@ -59,6 +61,7 @@ pref("layout.css.devPixelsPerPx", "1.0");
 
 // --- Privacy / background work ---------------------------------------------
 pref("datareporting.policy.dataSubmissionEnabled", false);
+pref("datareporting.policy.dataSubmissionPolicyBypassNotification", true);
 pref("datareporting.healthreport.uploadEnabled", false);
 pref("toolkit.telemetry.enabled", false);
 pref("toolkit.telemetry.unified", false);
