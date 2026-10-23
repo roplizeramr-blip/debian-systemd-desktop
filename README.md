@@ -155,6 +155,13 @@ swap can activate the same file. On a VPS, run `sudo scripts/host-swap.sh` on
 the **host** and set `SWAP_ENABLED=0` in the container so it does not create a
 second file. See [docs/DEPLOY-VPS.md](docs/DEPLOY-VPS.md).
 
+The status JSON is deliberately strict: `active` is `true` only when
+`/var/swap/swapfile` itself is listed by `swapon --show`. A container may see
+host swap devices such as `/swapfile` or `/swap.img`; those are reported
+separately in `other_swap_devices` and do **not** make `active` true. This
+avoids claiming that the requested 6 GiB file is active when only host swap is
+visible.
+
 ## Credentials
 
 | Item | Default |

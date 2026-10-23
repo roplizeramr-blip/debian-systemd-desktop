@@ -25,6 +25,12 @@ active_devices() {
         || true
 }
 
+requested_active() {
+    swapon --show=NAME --noheadings 2>/dev/null \
+        | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' \
+        | grep -Fxq "$SWAP_FILE"
+}
+
 write_status() {
     local active="$1"
     local error="${2:-}"
@@ -36,19 +42,35 @@ import json
 import sys
 
 path, active, swap_file, size_mb, error, devices = sys.argv[1:7]
+device_list = [d for d in devices.split(",") if d]
+requested_file_active = swap_file in device_list
+other_swap_devices = [d for d in device_list if d != swap_file]
 inactive_note = (
     "The swap file is ready. Activation is blocked by the container runtime "
     "(swapon needs CAP_SYS_ADMIN). The same file activates on a VPS or a host "
     "that permits swap."
 )
+if requested_file_active:
+    note = None
+elif other_swap_devices:
+    note = (
+        "Other swap devices are active, but the requested swap file is not. "
+        "The requested file is ready; activation is blocked by the container "
+        "runtime (swapon needs CAP_SYS_ADMIN). The same file activates on a VPS "
+        "or a host that permits swap."
+    )
+else:
+    note = inactive_note
 data = {
     "enabled": True,
-    "active": active == "1",
+    "active": requested_file_active,
+    "requested_file_active": requested_file_active,
     "file": swap_file,
     "size_mb": int(size_mb),
-    "devices": [d for d in devices.split(",") if d],
+    "devices": device_list,
+    "other_swap_devices": other_swap_devices,
     "error": error or None,
-    "note": None if active == "1" else inactive_note,
+    "note": note,
     "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
 }
 with open(path, "w", encoding="utf-8") as handle:
@@ -78,11 +100,15 @@ if [ "$SWAP_SIZE_MB" -le 0 ]; then
     exit 0
 fi
 
+if requested_active; then
+    log "requested swap file is already active: $SWAP_FILE"
+    write_status 1 "" "$(active_devices)"
+    exit 0
+fi
+
 already_active="$(active_devices)"
 if [ -n "$already_active" ]; then
-    log "swap already active: $already_active"
-    write_status 1 "" "$already_active"
-    exit 0
+    log "other swap is active (${already_active}); still preparing ${SWAP_FILE}"
 fi
 
 install -d -m 0700 "$SWAP_DIR"

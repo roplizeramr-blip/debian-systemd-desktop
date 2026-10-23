@@ -88,7 +88,11 @@ app builds and passes its health check, then delete the old app.
   `CAP_SYS_ADMIN`; `swapon /var/swap/swapfile` returns `EPERM`. Moving the file
   from `/swapfile` to `/var/swap` does not change this. The image creates the
   file and reports the exact error at `/swap-status.json` and
-  `/var/log/swap.log`; it does not pretend the swap is active.
+  `/var/log/swap.log`; it does not pretend the swap is active. The JSON's
+  `active` field is strict: it is `true` only when `/var/swap/swapfile` itself
+  is active. Host swap devices that the container can see (for example
+  `/swapfile` and `/swap.img`) are listed under `other_swap_devices` and do not
+  change `active`.
 - **Egress is currently blocked.** On 23 Oct 2026 the CranL status endpoint
   reports `major_outage` for the Edge Server. App ingress (the browser URL and
   `/healthz`) still works, but DNS resolves and outbound TCP/ICMP times out.
