@@ -1,12 +1,14 @@
-# Ubuntu Cloud Desktop — systemd-compatible, Supervisor-powered
+# Ubuntu Cloud Desktop — KasmVNC + Tailscale, systemd-compatible
 
-A lightweight, browser-accessible Ubuntu 24.04 XFCE desktop with Firefox,
-TigerVNC, noVNC and a **systemd compatibility layer** backed by Supervisor.
+A lightweight Ubuntu 24.04 XFCE desktop with Firefox, **KasmVNC**, **Tailscale**,
+and a **systemd compatibility layer** backed by Supervisor.
 
-The goal is practical compatibility: applications that check the usual systemd
-interfaces (`systemctl`, `/run/systemd/system`, `systemd-detect-virt`,
-`hostnamectl`, journald sockets, the `org.freedesktop.systemd1` D-Bus service)
-see a coherent Linux system, while Supervisor remains the real process manager.
+The public CranL port serves only a small control/status page. The desktop
+listens on loopback, and Tailscale Serve forwards it to your **tailnet** — there
+is no public VNC port. Applications that check the usual systemd interfaces
+(`systemctl`, `/run/systemd/system`, `systemd-detect-virt`, `hostnamectl`,
+journald sockets, the `org.freedesktop.systemd1` D-Bus service) see a coherent
+Linux system, while Supervisor remains the real process manager.
 
 > **Honest scope:** this is a compatibility facade, not the real systemd PID 1.
 > It is not a security boundary and will not fool software that deliberately
@@ -15,56 +17,84 @@ see a coherent Linux system, while Supervisor remains the real process manager.
 
 ---
 
+## Why this stack
+
+- **KasmVNC** replaces TigerVNC + noVNC + websockify with one HTTP/WebSocket
+  server. It adds adaptive JPEG/WebP encoding, dynamic resize and clipboard
+  support, while using fewer moving parts and less memory.
+- **Tailscale** provides private access over WireGuard. The public app page can
+  generate a login link, but the desktop itself is reachable only from devices
+  signed into the same tailnet.
+- **Supervisor** keeps the image small and predictable; the systemd facade keeps
+  ordinary Linux applications happy.
+
 ## Features
 
-- Ubuntu 24.04 LTS, XFCE, TigerVNC + noVNC (browser only, no client install).
-- Low-latency VNC profile: 30 fps cap, fast Tight/zlib compression, framebuffer
-  comparison, improved hextile, `-noreset` session persistence, and an optimized
-  noVNC URL (`quality=6`, `compression=2`, remote resize, auto-reconnect).
-- A 6 GiB swap file at `/var/swap/swapfile` (writable, non-standard path), with
-  an honest status page when the container runtime blocks `swapon`.
-- `earlyoom` userspace OOM protection and best-effort kernel memory tuning for
-  the 2 GiB desktop.
-- Firefox from Mozilla's official APT repository, with Arabic localization and
-  memory/network prefs tuned for a 2 GiB VNC session.
+- Ubuntu 24.04 LTS, XFCE, Firefox from Mozilla's APT repository, Arabic
+  localization.
+- KasmVNC `1.5.0` from the official release, checksum-pinned and loopback-only.
+- Tailscale in userspace networking mode by default (no `/dev/net/tun` or
+  `NET_ADMIN` required); `TS_TUN=kernel` is opt-in.
+- Persistent Tailscale Serve raw-TCP rule: tailnet `:3000` → `127.0.0.1:6080`.
+  Raw TCP preserves KasmVNC's WebSocket traffic. An optional TLS-terminated
+  rule (`TS_SERVE_HTTPS_PORT=3443`) can be enabled when Tailscale can provision
+  a certificate.
+- Public control page with **Open VNC**, Tailscale status/IP, **Connect
+  Tailscale**, and a login-link fallback.
+- Optional `TS_AUTHKEY` auto-join; otherwise the login link is opened in a new
+  tab from the public page and approved by the user.
+- Ubuntu package upgrade at build time; KasmVNC checksum verification.
+- No default swap file. Swap is opt-in (`SWAP_ENABLED=1`) and never blocks boot.
+- `earlyoom` protection, best-effort memory tuning and Firefox prefs for a small
+  container.
 - Supervisor as PID 1; the container command is `/usr/local/bin/systemd`
   (a symlink to Supervisord) so `/proc/1/comm` reads `systemd`.
-- `systemctl` shim with start/stop/restart/status/enable/disable, unit files,
-  dynamic unit support and realistic status output.
-- `systemd-detect-virt`, `hostnamectl`, `timedatectl`, `loginctl`,
-  `journalctl`, `systemd-analyze` shims.
-- A journald socket sink at `/run/systemd/journal/*` and `/dev/log`.
-- A D-Bus facade for `org.freedesktop.systemd1` with Manager, Unit, Service,
-  Target and Job objects.
-- Custom noVNC landing page, internal welcome page and a `/healthz` endpoint.
+- `systemctl`, `systemd-detect-virt`, `hostnamectl`, `timedatectl`, `loginctl`,
+  `journalctl`, `systemd-analyze` shims, a journald socket sink and a D-Bus
+  facade.
 - GitHub Actions workflow that builds and publishes to GHCR.
 - Docker Compose file for local testing.
 
 ## Architecture
 
 ```
-Browser ──HTTPS──► CranL edge ──► websockify/noVNC :3000
-                                        │
-                                        ▼ 127.0.0.1:5901
-                                   TigerVNC/Xvnc
-                                        │
-                                        ▼ DISPLAY :1
-                              XFCE + Firefox + apps
-                                        │
-                    ┌───────────────────┴───────────────────┐
-                    │ Supervisor (PID 1, named "systemd")   │
-                    │  dbus · journald · systemd-dbus       │
-                    │  xvnc · xfce · novnc                  │
-                    └───────────────────┬───────────────────┘
-                                        │
-                    systemctl shim ◄────┴────► org.freedesktop.systemd1
+CranL public HTTPS
+        │
+        ▼
+  control page :3000  ──►  /api/status, /healthz, Tailscale login helper
+        │
+        │  (login link, approval in a new tab)
+        ▼
+  tailscaled ── Serve raw TCP :3000 ──► 127.0.0.1:6080 (KasmVNC)
+                                              │
+                                              ▼ DISPLAY :1
+                                    XFCE + Firefox + apps
+                                              │
+                    ┌─────────────────────────┴─────────────────────────┐
+                    │ Supervisor (PID 1, named "systemd")               │
+                    │ dbus · journald · systemd-dbus · earlyoom         │
+                    │ kasmvnc · xfce · tailscaled · tailscale-serve     │
+                    │ tailscale-autoconnect · control                   │
+                    └─────────────────────────┬─────────────────────────┘
+                                              │
+                          systemctl shim ◄────┴────► org.freedesktop.systemd1
 ```
+
+Ports:
+
+| Port | Bound to | Purpose |
+|---|---|---|
+| `3000` | `0.0.0.0` | Public control page; CranL health path `/healthz` |
+| `6080` | `127.0.0.1` | KasmVNC HTTP/WebSocket |
+| `3000` (tailnet) | Tailscale Serve | Forwards to `127.0.0.1:6080` |
+| `3443` (tailnet, opt-in) | Tailscale Serve | TLS-terminated TCP to KasmVNC |
 
 ## Quick start (Docker)
 
 ```bash
 docker compose up --build -d
-# open http://localhost:3000
+# Open http://localhost:3000, click Connect Tailscale, approve the link,
+# then click Open VNC.
 ```
 
 Or with plain Docker:
@@ -74,108 +104,95 @@ docker build -t ubuntu-systemd-desktop .
 docker run -d --name ubuntu-systemd-desktop \
   -p 3000:3000 \
   --shm-size=1g \
-  -e VNC_PW='Ch4ngeM3' \
+  -e VNC_PW='Ch4ngeM3-strong' \
   -e VNC_RESOLUTION='1440x900' \
   -e TZ='Africa/Cairo' \
   ubuntu-systemd-desktop
 ```
 
-Then open `http://localhost:3000`, click **Open Desktop**, and enter the VNC
-password. The default VNC password in the image is `Ubuntu26`; always override
-it for a public deployment. TigerVNC VNC passwords are limited to **8
-characters** (older VNC authentication); use the strongest 8-character value you
-can. The Linux password is applied at container start from the private
-`DESKTOP_PW` environment variable; set it before deploying. If it is unset, the
-`desktop` account stays locked and only VNC login works.
+**Access flow**
+
+1. Open the public `*.cranl.net` URL (or `http://localhost:3000`).
+2. Click **Connect Tailscale**. A login link opens in a new tab.
+3. Approve the device in Tailscale. The page detects the connection and shows
+   the Tailscale IPv4 address.
+4. Click **Open VNC**, then sign in with user `desktop` and `VNC_PW`.
+5. To use a phone or another computer, install Tailscale there, sign into the
+   same tailnet, and open the same `http://100.x.y.z:3000/` address.
+
+The public page is the only CranL-exposed service. The VNC password is still
+required on the tailnet as a second layer.
 
 ## Environment variables
 
 | Variable | Default | Description |
 |---|---|---|
-| `NOVNC_PORT` | `3000` (or `PORT`) | Public HTTP/WebSocket port. Must match the CranL app port. |
-| `VNC_PORT` | `5901` | Internal TigerVNC port, bound to loopback. |
-| `VNC_RESOLUTION` | `1440x900` | Desktop geometry. |
-| `VNC_PW` | `Ubuntu26` | VNC password, **maximum 8 characters**. **Change for public use.** |
-| `DESKTOP_PW` | *(unset)* | Linux password for the `desktop` account. Set it from the deployment's private environment; the image does not bake a Linux password. If unset, the account stays locked. |
-| `VNC_FRAME_RATE` | `30` | Maximum updates per second per viewer. 30 is smooth and light; 60 is more responsive but uses more CPU/bandwidth. |
-| `VNC_COMPARE_FB` | `2` | TigerVNC framebuffer comparison mode: `0` off, `1` always, `2` auto. |
-| `VNC_ZLIB_LEVEL` | `1` | zlib compression level. `1` is the fastest; `9` is smallest. |
-| `SWAP_ENABLED` | `1` | Create `/var/swap/swapfile` and try to activate it. |
-| `SWAP_SIZE_MB` | `6144` | Swap file size in MiB (6 GiB). |
-| `SWAP_DIR` | `/var/swap` | Writable swap directory. |
-| `SWAP_FILE` | `/var/swap/swapfile` | Swap file path. |
-| `SWAP_SPARSE` | `1` (image) / `0` (Compose) | `1` creates a sparse file (safe for small container disks). Use `0` on a VPS so the swap file is fully allocated. |
+| `CONTROL_PORT` | `3000` (or `PORT`) | Public control-page port. Must match the CranL app port. |
+| `KASM_PORT` | `6080` | KasmVNC listener, always bound to `127.0.0.1`. |
+| `VNC_RESOLUTION` | `1440x900` | Initial desktop geometry; KasmVNC can resize dynamically. |
+| `VNC_PW` | *(required)* | KasmVNC Basic Auth password. Set it privately for every deployment. Minimum 6 characters. |
+| `VNC_USER` | `desktop` | KasmVNC Basic Auth username. |
+| `VNC_AUTH` | `1` | `1` requires Basic Auth. `0` disables it; not recommended. |
+| `VNC_FRAME_RATE` | `60` | KasmVNC maximum frame rate. Lower it for slow links. |
+| `DESKTOP_PW` | *(unset)* | Linux password for `desktop`. Set privately; no password is baked into the image. If unset, the account stays locked. |
+| `TS_HOSTNAME` | `ubuntu-desktop` | Tailscale device name. |
+| `TS_AUTHKEY` | *(unset)* | Optional Tailscale auth key for automatic join. Never commit it. |
+| `TS_TUN` | `userspace` | `userspace` works without `/dev/net/tun`/NET_ADMIN. Use `kernel` only on a host with a usable TUN device. |
+| `TS_STATE_DIR` | `/var/lib/tailscale` | Tailscale state directory. Ephemeral unless you mount a volume. |
+| `TS_SERVE_HTTP_PORT` | `3000` | Tailnet-side raw TCP port forwarded to KasmVNC. |
+| `TS_SERVE_HTTPS_PORT` | `0` | Optional TLS-terminated tailnet port; set `3443` to enable it. |
+| `TS_SERVE_INTERVAL` | `10` | Seconds between Serve status checks. |
+| `SWAP_ENABLED` | `0` | If `1`, create and try to activate a swap file. |
+| `SWAP_SIZE_MB` | `6144` | Opt-in swap file size. |
+| `SWAP_DIR` / `SWAP_FILE` | `/var/swap` / `/var/swap/swapfile` | Swap location. |
+| `SWAP_SPARSE` | `1` | Sparse file for small disks; use `0` on a VPS with enough space. |
 | `TZ` | `Africa/Cairo` | Container timezone. |
 | `LANG` / `LC_ALL` | `en_US.UTF-8` | Locale; falls back to `C.UTF-8`. |
 | `SYSTEMD_DETECT_VIRT` | `none` | Value returned by `systemd-detect-virt`. |
-| `SYSTEMD_DETECT_VIRT_CONTAINER` | `none` | Value for `systemd-detect-virt --container`. |
 | `HIDE_CONTAINER` | `0` | If `1`, removes `/.dockerenv`. Optional; not a security boundary. |
-| `DESKTOP_HOSTNAME` | `ubuntu-desktop` | Hostname written to `/etc/hostname` and applied when permitted. |
-| `VNC_BIND_ALL` | `0` | If `1`, Xvnc listens on all interfaces instead of loopback. |
+| `DESKTOP_HOSTNAME` | `ubuntu-desktop` | Hostname written to `/etc/hostname`. |
 
-## Performance profile
+## Tailscale details
 
-The desktop is tuned for a latency-bound browser session, not for a LAN with a
-native VNC client:
+`start-tailscaled.sh` uses userspace networking by default:
 
-- **Xvnc:** 30 fps cap, `CompareFB=2`, `ZlibLevel=1`, improved hextile and
-  `-noreset` so a browser reconnect returns to the same XFCE session instead
-  of restarting it.
-- **noVNC:** `quality=6`, `compression=2` (Tight/JPEG settings are viewer-side;
-  TigerVNC 1.13's server does not accept `-Quality` or `-CompressLevel`),
-  remote resize, auto-reconnect and a
-  short reconnect delay.
-- **XFCE:** compositor, shadows, window animations, smooth scrolling, blanking
-  and DPMS are disabled; the GTK theme is flat and dark.
-- **Firefox:** software rendering, two content processes, bounded caches,
-  fewer speculative network connections, no telemetry/studies.
-- **Memory:** `earlyoom` protects Xvnc/XFCE from a runaway browser process; VM
-  sysctls are applied best-effort.
-- **Swap:** a 6 GiB file at `/var/swap/swapfile`; see below for the container
-  runtime limitation.
+```bash
+tailscaled --tun=userspace-networking --state=/var/lib/tailscale/tailscaled.state
+```
 
-If your link is slow, lower `VNC_RESOLUTION` (for example `1280x800`) before
-lowering quality. If your link is fast and you want more responsiveness, raise
-`VNC_FRAME_RATE` to `60`.
+This needs no `/dev/net/tun` and no `NET_ADMIN`; it is the right default for
+CranL and most container platforms. Userspace mode still accepts inbound
+tailnet connections, and `tailscale-serve.sh` configures:
 
-## Swap
+```bash
+tailscale serve --bg --tcp=3000 tcp://127.0.0.1:6080
+```
 
-The image creates a **6 GiB swap file at `/var/swap/swapfile`**, not at
-`/swapfile`. The path is deliberately a writable folder, and the script never
-blocks boot if the operation fails:
+The control server waits for the Serve flag before enabling **Open VNC**. The
+primary URL is the raw-TCP HTTP address (`http://<tailscale-ip>:3000/`) because
+it works with an IP even when MagicDNS is disabled and keeps KasmVNC's
+WebSocket end-to-end. If you explicitly set `TS_SERVE_HTTPS_PORT=3443` and
+Tailscale can provision a certificate, the monitor also tries:
 
-1. `setup-swap.sh` creates a sparse or fully allocated file (`SWAP_SPARSE`).
-2. It runs `mkswap` and tries `swapon`.
-3. If disk swap is blocked, it tries a compressed `zram` device.
-4. The result is written to `/usr/share/novnc/swap-status.json` (shown on the
-   landing page) and logged to `/var/log/swap.log`.
+```bash
+tailscale serve --bg --tls-terminated-tcp=3443 tcp://127.0.0.1:6080
+```
 
-**Important:** CranL app containers do not grant `CAP_SYS_ADMIN`, so `swapon`
-returns `EPERM`. With `SWAP_SPARSE=1` on CranL, `swapon` may report
-`skipping - it appears to have holes` first; a fully allocated 64 MiB probe was
-also rejected with `Operation not permitted`, so active swap is impossible in
-this container either way. Changing the path to `/var/swap` does not change
-that; the kernel blocks the operation itself, not the folder. The file is
-ready, but it cannot become active swap inside a CranL app. A VPS or any host
-that permits swap can activate the same file. On a VPS, run
-`sudo scripts/host-swap.sh` on the **host** and set `SWAP_ENABLED=0` in the
-container so it does not create a second file. See
-[docs/DEPLOY-VPS.md](docs/DEPLOY-VPS.md).
+and the page shows an optional `https://<magicdns-name>:3443/` link.
 
-The status JSON is deliberately strict: `active` is `true` only when
-`/var/swap/swapfile` itself is listed by `swapon --show`. A container may see
-host swap devices such as `/swapfile` or `/swap.img`; those are reported
-separately in `other_swap_devices` and do **not** make `active` true. This
-avoids claiming that the requested 6 GiB file is active when only host swap is
-visible.
+**Login state is ephemeral on CranL.** A redeploy creates a fresh container and
+Tailscale node state, so you will normally need to approve a new login link. To
+avoid that, set a Tailscale auth key as the private `TS_AUTHKEY` variable, or
+mount a persistent volume at `/var/lib/tailscale`.
 
 ## Credentials
 
 | Item | Default |
 |---|---|
-| VNC password | `Ubuntu26` (`VNC_PW`); override for every public deployment |
+| VNC user | `desktop` |
+| VNC password | Required `VNC_PW`; never baked into the image |
 | Linux user | `desktop` |
-| Linux password | `DESKTOP_PW` (private deployment variable; no default) |
+| Linux password | `DESKTOP_PW` (private; no default) |
 | sudo | user is in the `sudo` group; password required |
 
 Change the Linux password inside the desktop:
@@ -184,10 +201,40 @@ Change the Linux password inside the desktop:
 sudo passwd desktop
 ```
 
-- VNC password must be **8 characters or fewer**; longer values are truncated by the legacy VNC authentication scheme.
-- Changing `VNC_PW` or `DESKTOP_PW` requires a container restart. The Linux
-  password is applied from `DESKTOP_PW` at start; the public image does not bake
-  a Linux secret.
+Changing `VNC_PW` or `DESKTOP_PW` requires a container restart. KasmVNC stores
+only an obfuscated credential in `/home/desktop/.kasmpasswd`; it never stores the
+plaintext password in the image or repository.
+
+## Performance and footprint
+
+- **Single VNC server:** KasmVNC replaces TigerVNC + noVNC + websockify, removing
+  a Python proxy and a second browser-facing component.
+- **Adaptive encoding:** KasmVNC selects compression based on the link; the
+  maximum frame rate is configurable.
+- **XFCE:** compositor, shadows, animations, blanking and DPMS are disabled.
+- **Firefox:** software rendering, bounded caches, no telemetry/studies, and
+  Arabic localization.
+- **Memory:** `earlyoom` protects KasmVNC/XFCE from a runaway browser tab.
+- **Swap:** disabled by default; see below.
+
+For a slow link, lower `VNC_RESOLUTION` (for example `1280x800`) or
+`VNC_FRAME_RATE` before adding heavier compression.
+
+## Swap (optional)
+
+Swap is **off by default** because KasmVNC is lighter than the old stack and a
+6 GiB file wastes disk on CranL's free plan. To enable it:
+
+```bash
+-e SWAP_ENABLED=1 -e SWAP_SIZE_MB=4096
+```
+
+`setup-swap.sh` creates and tries to activate `/var/swap/swapfile`, then tries
+zram if `swapon` is blocked. It records the result in
+`/run/desktop-swap-status.json` and `/var/log/swap.log`. CranL containers do not
+grant `CAP_SYS_ADMIN`, so active disk swap normally remains unavailable there;
+the file is still prepared and the failure is reported honestly. A VPS that
+permits swap can activate it. See [docs/DEPLOY-VPS.md](docs/DEPLOY-VPS.md).
 
 ## systemd compatibility matrix
 
@@ -195,7 +242,7 @@ sudo passwd desktop
 |---|---|---|
 | `/run/systemd/system` | ✅ | Created at startup; `sd_booted()` returns true. |
 | `systemctl start/stop/restart/status` | ✅ | Backed by Supervisor. |
-| `systemctl enable/disable` | ✅ | Unit symlinks + dynamic Supervisor autostart. Core services are static Supervisor programs, so disabling one does not remove it from the image's boot config. |
+| `systemctl enable/disable` | ✅ | Unit symlinks + dynamic Supervisor autostart. |
 | `systemctl is-active/is-enabled/is-system-running` | ✅ | Realistic output and exit codes. |
 | `systemctl list-units/list-unit-files/show/cat` | ✅ | Reads standard unit directories. |
 | Dynamic unit files | ✅ | Generates a Supervisor program on demand. |
@@ -220,9 +267,11 @@ Core units have static Supervisor programs with matching names:
 | `dbus.service` | `dbus` |
 | `systemd-journald.service` | `systemd-journald` |
 | `systemd-dbus.service` | `systemd-dbus` |
-| `xvnc.service` | `xvnc` |
+| `kasmvnc.service` | `kasmvnc` |
 | `xfce.service` | `xfce` |
-| `novnc.service` | `novnc` |
+| `control.service` | `control` |
+| `tailscaled.service` | `tailscaled` |
+| `tailscale-serve.service` | `tailscale-serve` |
 
 For any other `.service` file, `systemctl start` parses `ExecStart=`,
 `Environment=`, `User=`, `WorkingDirectory=` and `Restart=` and writes a
@@ -238,16 +287,12 @@ See [docs/DEPLOY-CRANL.md](docs/DEPLOY-CRANL.md). The short version:
    Dockerfile directly from the repository.
 3. Create a CranL app with port `3000`, health path `/healthz`, and the
    environment variables above.
-4. Open the generated `*.cranl.net` URL.
+4. Open the generated `*.cranl.net` URL, connect Tailscale, approve the login,
+   then click **Open VNC**.
 
 The free plan allows two apps. Keep the old desktop running until the new app
-passes the health check, then delete the old one from the dashboard.
-
-> **CranL status, 23 Oct 2026:** the Edge Server component reports a
-> `major_outage`. Ingress to apps still works, but app **egress** (DNS resolves,
-> TCP/ICMP times out) is blocked. This is a platform outage, not an image
-> problem. Also, CranL app containers cannot activate a swap file; see the
-> [Swap](#swap) section. Use a VPS for immediate internet plus active swap.
+passes its health check and the Tailscale path has been verified; delete the old
+one only after that.
 
 ## GitHub Actions / GHCR
 
@@ -258,8 +303,8 @@ ghcr.io/<owner>/ubuntu-systemd-desktop:latest
 ghcr.io/<owner>/ubuntu-systemd-desktop:sha-<commit>
 ```
 
-Make the GHCR package public after the first build, or create a GitHub PAT
-with `read:packages` and use it as the CranL registry credential.
+Make the GHCR package public after the first build, or create a GitHub PAT with
+`read:packages` and use it as the CranL registry credential.
 
 ## Testing
 
@@ -267,7 +312,7 @@ Inside the container:
 
 ```bash
 /opt/desktop/tests/smoke-test.sh
-sudo /opt/desktop/tests/test-systemd.sh
+/opt/desktop/tests/validate.sh
 ```
 
 Manual checks:
@@ -275,8 +320,8 @@ Manual checks:
 ```bash
 systemctl --version
 systemctl is-system-running
-systemctl status
-systemctl status xvnc
+systemctl status kasmvnc
+systemctl status tailscaled
 systemd-detect-virt
 hostnamectl
 journalctl -n 20
@@ -284,6 +329,9 @@ busctl --system introspect org.freedesktop.systemd1 /org/freedesktop/systemd1
 ps -p 1 -o comm=
 firefox --version
 curl -fsS http://127.0.0.1:3000/healthz
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:6080/
+tailscale status
+tailscale serve status
 ```
 
 See [docs/TESTING.md](docs/TESTING.md) for expected output and browser checks.
@@ -304,9 +352,9 @@ See [docs/TESTING.md](docs/TESTING.md) for expected output and browser checks.
 │   ├── hostnamectl.py / timedatectl.py / loginctl.py / journalctl.py
 │   ├── units/
 │   └── dbus/
-├── scripts/                 # startup, desktop setup, health check
+├── scripts/                 # KasmVNC, Tailscale, control server, startup
 ├── desktop/                 # wallpaper, Firefox defaults, launchers
-├── web/                     # noVNC landing page, welcome page, healthz
+├── web/                     # public control page + internal welcome page
 ├── tests/
 ├── docs/
 └── .github/workflows/build.yml
@@ -319,27 +367,28 @@ See [docs/TESTING.md](docs/TESTING.md) for expected output and browser checks.
 - **D-Bus is a facade.** Common Manager/Unit methods work, but advanced
   transaction/job semantics and all properties are not implemented.
 - **Container checks can still succeed.** `/.dockerenv` (unless
-  `HIDE_CONTAINER=1`), `/proc/1/cgroup`, overlayfs and the Docker network
-  remain visible. This project does not attempt to defeat security software,
-  anti-cheat or licence enforcement.
+  `HIDE_CONTAINER=1`), `/proc/1/cgroup`, overlayfs and the Docker network remain
+  visible. This project does not attempt to defeat security software, anti-cheat
+  or licence enforcement.
 - **No snap.** Firefox comes from Mozilla's APT repository instead.
 - **No audio device / no GPU acceleration.** It is a VNC desktop.
+- **Tailscale state is ephemeral by default.** A redeploy requires a fresh login
+  link unless you provide `TS_AUTHKEY` or persist `/var/lib/tailscale`.
 - **CranL apps cannot activate swap.** `swapon` needs a capability the runtime
-  does not grant; `/var/swap/swapfile` is created and reported, but remains
-  inactive. A VPS/host with swap enabled is required for active 6 GiB swap.
-- **CranL egress is currently down.** The Edge Server reports a major outage;
-  apps can be reached from the browser, but they cannot reach the internet.
+  does not grant; the file is prepared but normally inactive.
 - **Data is ephemeral.** Files live in the container; redeploys can erase them.
-- **Public VNC is sensitive.** Use a strong password and a private URL. TLS is
-  terminated at CranL; noVNC uses WSS to the edge.
+- **Tailscale access is not a substitute for desktop security.** Keep KasmVNC
+  Basic Auth enabled and use a strong `VNC_PW`.
 
 ## Security recommendations
 
-1. Set a strong, unique `VNC_PW` (8 characters maximum) before deployment.
+1. Set a strong, unique `VNC_PW` before deployment; keep `VNC_AUTH=1`.
 2. Set a strong `DESKTOP_PW` in the private app environment; never commit it.
-3. Do not store SSH keys, tokens or personal data in the container.
-4. Keep the URL private; anyone with the URL and password has full control.
-5. Rebuild regularly to pick up Ubuntu and Firefox security updates.
+3. Never commit `TS_AUTHKEY`; use the deployment's private environment.
+4. Do not store SSH keys, tokens or personal data in the container.
+5. Keep the public control URL reasonably private; the tailnet is the real
+   access boundary.
+6. Rebuild regularly to pick up Ubuntu, Firefox, KasmVNC and Tailscale updates.
 
 ## License
 
@@ -349,11 +398,15 @@ MIT. See [LICENSE](LICENSE).
 
 ## البدء السريع بالعربية
 
-1. ارفع المجلد إلى GitHub.
-2. شغّل GitHub Actions، أو أنشئ تطبيقًا على CranL من المستودع مع
-   `build: dockerfile` والمنفذ `3000`.
-3. اضبط `VNC_PW` بكلمة مرور قوية، واترك `NOVNC_PORT=3000`.
-4. افتح الرابط، اضغط **Open Desktop**، ثم أدخل كلمة مرور VNC.
-5. غيّر كلمة مرور المستخدم `desktop` من داخل الطرفية بالأمر `passwd`.
+1. ارفع المجلد إلى GitHub، ثم أنشئ تطبيقًا على CranL من المستودع باستخدام
+   `build: dockerfile` والمنفذ `3000` ومسار الصحة `/healthz`.
+2. اضبط `VNC_PW` بكلمة مرور قوية، واضبط `DESKTOP_PW` إن أردت تسجيل الدخول
+   إلى لينكس. لا تضع أي أسرار في المستودع.
+3. افتح رابط التطبيق، اضغط **Connect Tailscale**، ووافق على رابط الدخول في
+   التبويب الجديد.
+4. بعد ظهور عنوان Tailscale، اضغط **Open VNC** ثم سجّل الدخول باسم `desktop`
+   وكلمة مرور `VNC_PW`.
+5. لاستخدامه من الهاتف أو جهاز آخر، ثبّت Tailscale هناك وسجّل الدخول إلى نفس
+   الشبكة، ثم افتح عنوان `http://100.x.y.z:3000/`.
 
 طبقة systemd هنا **توافقية** وليست systemd الحقيقي؛ راجع قسم القيود أعلاه.

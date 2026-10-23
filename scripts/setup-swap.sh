@@ -11,7 +11,7 @@ SWAP_DIR="${SWAP_DIR:-/var/swap}"
 SWAP_FILE="${SWAP_FILE:-${SWAP_DIR}/swapfile}"
 SWAP_SIZE_MB="${SWAP_SIZE_MB:-6144}"
 SWAP_SPARSE="${SWAP_SPARSE:-0}"
-SWAP_STATUS_FILE="${SWAP_STATUS_FILE:-/usr/share/novnc/swap-status.json}"
+SWAP_STATUS_FILE="${SWAP_STATUS_FILE:-/run/desktop-swap-status.json}"
 
 log() {
     printf '%s [swap] %s\n' "$(date -u +%FT%TZ)" "$*"

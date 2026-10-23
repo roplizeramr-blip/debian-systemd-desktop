@@ -1,6 +1,6 @@
 [Unit]
-Description=Virtual Network Computing (VNC) Server
-Documentation=man:Xvnc(1)
+Description=KasmVNC Desktop Server
+Documentation=https://kasmweb.com/kasmvnc/docs
 After=dbus.service
 Wants=dbus.service
 
@@ -11,7 +11,8 @@ Group=desktop
 Environment=DISPLAY=:1
 Environment=HOME=/home/desktop
 Environment=USER=desktop
-ExecStart=/usr/local/bin/start-xvnc.sh
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+ExecStart=/usr/local/bin/start-kasmvnc.sh
 Restart=always
 RestartSec=2
 KillMode=control-group

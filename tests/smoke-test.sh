@@ -5,7 +5,7 @@ set -u
 
 PASS=0
 FAIL=0
-PORT="${NOVNC_PORT:-${PORT:-3000}}"
+PORT="${CONTROL_PORT:-${PORT:-3000}}"
 
 check() {
     local label="$1"
@@ -39,38 +39,75 @@ check "systemctl --version" systemctl --version
 check "/run/systemd/system exists" test -d /run/systemd/system
 check "PID 1 is named systemd" bash -c '[ "$(ps -p 1 -o comm= | tr -d " ")" = "systemd" ]'
 check "system is running" bash -c '[ "$(systemctl is-system-running)" = "running" ]'
-check "xvnc is active" bash -c '[ "$(systemctl is-active xvnc.service)" = "active" ]'
-check "novnc is active" bash -c '[ "$(systemctl is-active novnc.service)" = "active" ]'
+check "kasmvnc is active" bash -c '[ "$(systemctl is-active kasmvnc.service)" = "active" ]'
+check "xfce is active" bash -c '[ "$(systemctl is-active xfce.service)" = "active" ]'
+check "control page is active" bash -c '[ "$(systemctl is-active control.service)" = "active" ]'
+check "tailscaled is active" bash -c '[ "$(systemctl is-active tailscaled.service)" = "active" ]'
+check "tailscale-serve is active" bash -c '[ "$(systemctl is-active tailscale-serve.service)" = "active" ]'
 check "detect-virt reports none" bash -c '[ "$(systemd-detect-virt)" = "none" ]'
 check_contains "hostnamectl reports Ubuntu" "Ubuntu" hostnamectl
-check_contains "systemctl list-units includes xvnc" "xvnc.service" systemctl list-units --type=service --no-pager
-check "health endpoint" curl -fsS "http://127.0.0.1:${PORT}/healthz"
+check_contains "systemctl list-units includes kasmvnc" "kasmvnc.service" systemctl list-units --type=service --no-pager
 check_contains "Firefox is installed" "Mozilla Firefox" firefox --version
 check "D-Bus manager is introspectable" bash -c 'busctl --system introspect org.freedesktop.systemd1 /org/freedesktop/systemd1 >/dev/null 2>&1'
 
-# Performance and swap additions.
+# KasmVNC is loopback-only and requires Basic Auth by default.
+check "Xvnc is running" pgrep -x Xvnc
+check "KasmVNC config exists" test -s /home/desktop/.vnc/kasmvnc.yaml
+check "KasmVNC credentials exist" test -s /home/desktop/.kasmpasswd
+check "KasmVNC is listening on loopback" bash -c 'code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 4 http://127.0.0.1:6080/); [ "$code" = "401" ]'
+if [ "${VNC_AUTH:-1}" != "0" ] && [ -n "${VNC_PW:-}" ]; then
+    check "KasmVNC Basic Auth accepts VNC_PW" curl -fsS --max-time 5 -u "${VNC_USER:-desktop}:${VNC_PW}" http://127.0.0.1:6080/ >/dev/null
+fi
+
+# Public control plane.
+for _ in $(seq 1 30); do
+    curl -fsS --max-time 3 "http://127.0.0.1:${PORT}/healthz" >/dev/null 2>&1 && break
+    sleep 1
+done
+check "health endpoint" curl -fsS --max-time 5 "http://127.0.0.1:${PORT}/healthz"
+check "control page is served" curl -fsS --max-time 5 "http://127.0.0.1:${PORT}/" >/tmp/control-page.html
+check_contains "control page has Open VNC" "Open VNC" cat /tmp/control-page.html
+check_contains "control page names KasmVNC" "KasmVNC" cat /tmp/control-page.html
+check_contains "control page names Tailscale" "Tailscale" cat /tmp/control-page.html
+check "status API is valid JSON" bash -c "curl -fsS --max-time 5 http://127.0.0.1:${PORT}/api/status | python3 -m json.tool >/dev/null"
+check_contains "status API reports KasmVNC" '"engine":"KasmVNC"' curl -fsS --max-time 5 "http://127.0.0.1:${PORT}/api/status"
+check_contains "status API reports Tailscale installed" '"installed":true' curl -fsS --max-time 5 "http://127.0.0.1:${PORT}/api/status"
+
+# Tailscale is installed and may legitimately be waiting for the login flow.
+check "tailscale CLI exists" command -v tailscale
+check "tailscale version" tailscale version
+if tailscale status >/dev/null 2>&1; then
+    echo "PASS  tailscale daemon responds"
+    PASS=$((PASS + 1))
+else
+    echo "INFO  tailscale status is not ready yet (NeedsLogin or starting)"
+fi
+
+# Old stack should not be present.
+check "noVNC directory is absent" bash -c '[ ! -d /usr/share/novnc ]'
+check "TigerVNC package is absent" bash -c '! dpkg-query -W -f="\${Status}" tigervnc-standalone-server 2>/dev/null | grep -q "install ok installed"'
+
+# Performance helpers.
 check "earlyoom is running" pgrep -x earlyoom
-check_contains "Xvnc has a frame-rate cap" "FrameRate" pgrep -a Xvnc
-check_contains "Xvnc keeps the session on disconnect" "noreset" pgrep -a Xvnc
-check_contains "Xvnc uses fast zlib compression" "ZlibLevel 1" pgrep -a Xvnc
-check "noVNC page has low-latency parameters" grep -q 'quality=6' /usr/share/novnc/index.html
 check "system dashboard launcher exists" test -f /home/desktop/Desktop/system-dashboard.desktop
 check "host swap helper is executable" test -x /usr/local/bin/host-swap.sh
 
-# The swap file is created asynchronously; wait briefly for the status file.
-for _ in $(seq 1 30); do
-    [ -s /usr/share/novnc/swap-status.json ] && break
-    sleep 1
-done
-check "swap status JSON exists" test -s /usr/share/novnc/swap-status.json
-check "swap status JSON is valid" python3 -m json.tool /usr/share/novnc/swap-status.json
-check "swap file exists" test -f /var/swap/swapfile
+# Swap is opt-in.  Only verify the status file when it was requested.
+if [ "${SWAP_ENABLED:-0}" = "1" ]; then
+    for _ in $(seq 1 30); do
+        [ -s /run/desktop-swap-status.json ] && break
+        sleep 1
+    done
+    check "swap status JSON exists" test -s /run/desktop-swap-status.json
+    check "swap status JSON is valid" python3 -m json.tool /run/desktop-swap-status.json
+    check "swap file exists" test -f /var/swap/swapfile
+fi
 
 if swapon --show=NAME --noheadings 2>/dev/null | grep -q .; then
     echo "PASS  active swap is available"
     PASS=$((PASS + 1))
 else
-    echo "WARN  swap is not active; the container runtime may block swapon"
+    echo "INFO  swap is not active (expected on CranL)"
 fi
 
 echo

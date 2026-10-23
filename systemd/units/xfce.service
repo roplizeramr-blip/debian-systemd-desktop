@@ -1,8 +1,8 @@
 [Unit]
 Description=XFCE Desktop Session
 Documentation=man:startxfce4(1)
-After=xvnc.service dbus.service
-Requires=xvnc.service
+After=kasmvnc.service dbus.service
+Requires=kasmvnc.service
 Wants=dbus.service
 
 [Service]

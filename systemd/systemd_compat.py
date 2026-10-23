@@ -45,9 +45,11 @@ CORE_UNITS: dict[str, str] = {
     "dbus.service": "dbus",
     "systemd-journald.service": "systemd-journald",
     "systemd-dbus.service": "systemd-dbus",
-    "xvnc.service": "xvnc",
+    "kasmvnc.service": "kasmvnc",
     "xfce.service": "xfce",
-    "novnc.service": "novnc",
+    "control.service": "control",
+    "tailscaled.service": "tailscaled",
+    "tailscale-serve.service": "tailscale-serve",
 }
 CORE_PROGRAMS = set(CORE_UNITS.values())
 
@@ -67,7 +69,13 @@ TARGET_UNITS = {
     "slices.target",
 }
 TARGET_DEPS: dict[str, list[str]] = {
-    "graphical.target": ["xvnc.service", "xfce.service", "novnc.service"],
+    "graphical.target": [
+        "kasmvnc.service",
+        "xfce.service",
+        "control.service",
+        "tailscaled.service",
+        "tailscale-serve.service",
+    ],
     "multi-user.target": [
         "dbus.service",
         "systemd-journald.service",

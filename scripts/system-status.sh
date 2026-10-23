@@ -18,8 +18,8 @@ free -h 2>/dev/null || true
 echo
 echo "--- Swap ----------------------------------------------------"
 swapon --show 2>/dev/null || true
-if [ -s /usr/share/novnc/swap-status.json ]; then
-    cat /usr/share/novnc/swap-status.json
+if [ -s /run/desktop-swap-status.json ]; then
+    cat /run/desktop-swap-status.json
 else
     echo "swap status file not available yet"
 fi
@@ -30,9 +30,11 @@ echo
 echo "--- Supervisor services -------------------------------------"
 supervisorctl status 2>/dev/null || true
 echo
-echo "--- VNC / noVNC ---------------------------------------------"
+echo "--- KasmVNC / Tailscale -------------------------------------"
 pgrep -a Xvnc 2>/dev/null || true
-pgrep -a websockify 2>/dev/null || true
+pgrep -a tailscaled 2>/dev/null || true
+tailscale status 2>/dev/null || true
+tailscale serve status 2>/dev/null || true
 echo
 echo "--- Top processes -------------------------------------------"
 ps -eo pid,comm,%cpu,%mem --sort=-%cpu 2>/dev/null | head -12 || true

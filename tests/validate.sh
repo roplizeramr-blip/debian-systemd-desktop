@@ -26,7 +26,7 @@ if command -v python3 >/dev/null 2>&1; then
             echo "FAIL  $file"
             FAIL=1
         fi
-    done < <(find "$ROOT/systemd" -name '*.py' -print0)
+    done < <(find "$ROOT/scripts" "$ROOT/systemd" -name '*.py' -print0)
 else
     echo "SKIP  python3 not available"
 fi

@@ -1,0 +1,83 @@
+#!/bin/bash
+# Launch KasmVNC as the desktop user.  The web server stays on loopback; the
+# public entrypoint is the small control page, and Tailscale Serve forwards a
+# tailnet port to this process only after the device is authenticated.
+#
+# KasmVNC's vncserver wrapper forks Xvnc and exits (the upstream systemd unit
+# uses Type=forking).  Keep a Supervisor-visible monitor alive so a crashed
+# Xvnc is restarted and stopasgroup can tear down the whole session.
+set -Eeuo pipefail
+
+export HOME="${HOME:-/home/desktop}"
+export DISPLAY="${DISPLAY:-:1}"
+export USER="${USER:-desktop}"
+export LOGNAME="${LOGNAME:-desktop}"
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/1000}"
+
+KASM_DISPLAY="${KASM_DISPLAY:-1}"
+VNC_RESOLUTION="${VNC_RESOLUTION:-1440x900}"
+KASM_PORT="${KASM_PORT:-6080}"
+
+mkdir -p "$HOME/.vnc" "$XDG_RUNTIME_DIR"
+chmod 0700 "$HOME/.vnc" "$XDG_RUNTIME_DIR" 2>/dev/null || true
+
+# A crashed Xvnc can leave a stale lock behind; the monitor is only started
+# after the previous process group has exited, so it is safe to clear it here.
+rm -f "/tmp/.X${KASM_DISPLAY}-lock" "/tmp/.X11-unix/X${KASM_DISPLAY}"
+rm -f "$HOME/.vnc/"*":${KASM_DISPLAY}.pid"
+
+# The wrapper consumes ~/.vnc/kasmvnc.yaml, written by entrypoint.sh.  A
+# separate XFCE Supervisor unit starts the window manager on the same display;
+# -noxstartup keeps KasmVNC focused on X and the web socket.
+args=(
+    ":${KASM_DISPLAY}"
+    -geometry "$VNC_RESOLUTION"
+    -depth 24
+    -noxstartup
+    -localhost
+)
+if [ "${VNC_AUTH:-1}" = "0" ]; then
+    args+=(-disableBasicAuth)
+fi
+
+/usr/bin/vncserver "${args[@]}"
+
+# Wait for the X socket as well as the PID file; XFCE starts immediately after
+# Supervisor sees this process running.
+for _ in $(seq 1 75); do
+    if xdpyinfo -display ":${KASM_DISPLAY}" >/dev/null 2>&1; then
+        break
+    fi
+    sleep 0.2
+done
+
+pidfile=""
+for _ in $(seq 1 30); do
+    for candidate in "$HOME/.vnc/"*":${KASM_DISPLAY}.pid"; do
+        if [ -s "$candidate" ]; then
+            pidfile="$candidate"
+            break
+        fi
+    done
+    [ -n "$pidfile" ] && break
+    sleep 0.2
+done
+
+if [ -z "$pidfile" ]; then
+    echo "[kasmvnc] vncserver did not create a PID file" >&2
+    exit 1
+fi
+
+xvnc_pid="$(cat "$pidfile")"
+if ! kill -0 "$xvnc_pid" 2>/dev/null; then
+    echo "[kasmvnc] Xvnc exited before the monitor started" >&2
+    exit 1
+fi
+
+echo "[kasmvnc] Xvnc pid ${xvnc_pid}; HTTP on 127.0.0.1:${KASM_PORT}"
+while kill -0 "$xvnc_pid" 2>/dev/null; do
+    sleep 2
+done
+
+echo "[kasmvnc] Xvnc exited; requesting a Supervisor restart" >&2
+exit 1

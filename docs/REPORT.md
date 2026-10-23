@@ -1,5 +1,9 @@
 # تقرير المشروع — Ubuntu Cloud Desktop
 
+> **ملاحظة تاريخية:** يصف هذا التقرير البنية القديمة (TigerVNC + noVNC).
+> البنية الحالية تستخدم **KasmVNC + Tailscale** ولا تعرض سطح المكتب على
+> المنفذ العام. راجع `README.md` و`docs/DEPLOY-CRANL.md` للحالة الحالية.
+
 **التاريخ:** 23 أكتوبر 2026  
 **المسار المحلي:** `C:\Users\East-Sound\Desktop\ubuntu-systemd-desktop`  
 **الهدف:** سطح مكتب Ubuntu احترافي عبر المتصفح، مع Firefox، وطبقة توافق systemd مبنية فوق Supervisor، جاهز للرفع على GitHub والنشر على CranL.

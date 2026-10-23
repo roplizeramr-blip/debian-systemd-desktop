@@ -21,6 +21,15 @@ chmod 0700 "$XDG_RUNTIME_DIR" 2>/dev/null || true
 unset SESSION_MANAGER
 unset DBUS_SESSION_BUS_ADDRESS
 
+# Supervisor starts this unit shortly after KasmVNC; allow Xvnc a few seconds
+# to create the display socket instead of burning restart attempts.
+for _ in $(seq 1 150); do
+    if xdpyinfo -display "$DISPLAY" >/dev/null 2>&1; then
+        break
+    fi
+    sleep 0.2
+done
+
 # Run setup-desktop inside the same session bus as XFCE.  xfconf-query talks
 # to xfconfd over DBUS_SESSION_BUS_ADDRESS, so a separate Supervisor program
 # would not see the running session.

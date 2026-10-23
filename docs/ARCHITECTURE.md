@@ -9,9 +9,11 @@ Docker CMD
             ├─ systemd-journald  (journal socket sink)
             ├─ dbus              (system D-Bus daemon)
             ├─ systemd-dbus      (org.freedesktop.systemd1 facade)
-            ├─ xvnc              (TigerVNC on :1, loopback:5901)
+            ├─ kasmvnc           (KasmVNC on :1, loopback:6080)
             ├─ xfce              (XFCE session on DISPLAY=:1)
-            └─ novnc             (websockify on 0.0.0.0:3000)
+            ├─ tailscaled        (userspace or kernel Tailscale)
+            ├─ tailscale-serve   (tailnet TCP :3000 -> 127.0.0.1:6080)
+            └─ control           (public page/API on 0.0.0.0:3000)
 ```
 
 Desktop setup (wallpaper, launchers and browser defaults) runs inside the
@@ -20,8 +22,19 @@ must share the session bus with XFCE so `xfconf-query` can reach the running
 `xfconfd`.
 
 The entrypoint prepares `/run/systemd/system`, `/run/dbus`,
-`/run/user/1000`, a VNC password, `/dev/log` and the machine ID before
-`exec`-ing Supervisord.
+`/run/user/1000`, KasmVNC's YAML config and `.kasmpasswd`, the Tailscale state
+directories, `/dev/log` and the machine ID before `exec`-ing Supervisord.
+
+## Access path
+
+The public container port `3000` is served by `control-server.py`. It exposes
+only the static control page, `/api/status`, the Tailscale login trigger and
+`/healthz`. KasmVNC binds `127.0.0.1:6080` and is never directly published.
+`tailscale-serve.sh` applies a raw TCP Serve rule, preserving the WebSocket
+traffic, and the control page enables **Open VNC** only after that rule is
+active. The optional TLS-terminated Serve rule provides a certificate-backed
+URL when Tailscale can provision one; plain HTTP over WireGuard remains the
+reliable path.
 
 ## Why Supervisor as PID 1?
 
@@ -88,3 +101,8 @@ The facade is deliberately not an anti-detection product.  It does not alter
 cgroups, kernel namespaces, overlayfs, the Docker network or `/proc/1/exe`.
 `HIDE_CONTAINER=1` only removes `/.dockerenv`; that is a small compatibility
 convenience, not a guarantee.
+
+The real access boundary is Tailscale: the VNC listener is loopback-only, and
+the public port serves only a status/control page. KasmVNC Basic Auth remains a
+second factor inside the tailnet. The Tailscale auth key is never exposed to the
+browser; only the short-lived login URL is returned by the control API.

@@ -1,60 +1,61 @@
 مشروع Ubuntu Cloud Desktop
 ==========================
 
+سطح مكتب Ubuntu 24.04 + XFCE + Firefox، يعمل بـ KasmVNC ويُفتح بشكل خاص
+عبر Tailscale. المنفذ العام في CranL يعرض صفحة التحكم فقط، وليس سطح المكتب.
+
 المسار:
 C:\Users\East-Sound\Desktop\ubuntu-systemd-desktop
 
-هذا المشروع كامل وجاهز للرفع على GitHub. لم يتم بناء الصورة محليًا
-لأن Docker/Podman غير مثبتين على الجهاز. البناء يتم عبر GitHub Actions
-أو عبر CranL مباشرة.
-
 الخطوات السريعة
 ---------------
-1. ارفع المجلد إلى مستودع GitHub جديد.
-2. انتظر GitHub Actions حتى ينتهي بناء الصورة (أو استخدم CranL لبناء
-   Dockerfile مباشرة).
-3. أنشئ تطبيقًا على CranL:
+1. ارفع المجلد إلى GitHub.
+2. أنشئ تطبيقًا على CranL من المستودع:
+   - Build: Dockerfile
    - Port: 3000
    - Health: /healthz
    - Region: netherlands-1
-   - Image (إن استخدمت GHCR):
-     ghcr.io/<اسمك>/ubuntu-systemd-desktop:latest
-4. أضف المتغيرات:
-   NOVNC_PORT=3000
-   VNC_PORT=5901
-   VNC_RESOLUTION=1440x900
-   VNC_PW=كلمة-مرور-قوية-8-أحرف
+3. أضف المتغيرات الخاصة (وليست داخل المستودع):
+   CONTROL_PORT=3000
+   VNC_PW=كلمة-مرور-قوية-6-أحرف-على-الأقل
    DESKTOP_PW=كلمة-مرور-لينكس-قوية
-   VNC_FRAME_RATE=30
-   VNC_ZLIB_LEVEL=1
-   SWAP_ENABLED=1
-   SWAP_SIZE_MB=6144
-   SWAP_SPARSE=1
+   VNC_RESOLUTION=1440x900
+   VNC_FRAME_RATE=60
+   VNC_USER=desktop
+   VNC_AUTH=1
    TZ=Africa/Cairo
-   SYSTEMD_DETECT_VIRT=none
-   HIDE_CONTAINER=0
-5. افتح رابط التطبيق، اضغط Open Desktop، وأدخل كلمة مرور VNC.
-6. من داخل الطرفية غيّر كلمة مرور المستخدم إن أردت:
-   sudo passwd desktop
+   TS_HOSTNAME=ubuntu-desktop
+   # اختياري: TS_AUTHKEY=tskey-auth-...
+   # اختياري: SWAP_ENABLED=0
+4. افتح رابط التطبيق، ثم اضغط Connect Tailscale.
+5. وافق على رابط الدخول في التبويب الجديد.
+6. بعد ظهور عنوان Tailscale اضغط Open VNC، وسجّل الدخول باسم desktop
+   وكلمة مرور VNC_PW.
+7. لاستخدامه من الهاتف: ثبّت Tailscale على الهاتف، سجّل الدخول إلى نفس
+   الشبكة، ثم افتح http://100.x.y.z:3000/
 
 بيانات الدخول
 -------------
+VNC user: desktop
 VNC password: القيمة التي وضعتها في VNC_PW
 Linux user: desktop
 Linux password: القيمة التي وضعتها في DESKTOP_PW
 
-لا توجد كلمة مرور افتراضية مكتوبة داخل الصورة أو المستودع.
+لا توجد كلمة مرور افتراضية مكتوبة داخل المستودع. لا ترفع VNC_PW أو
+DESKTOP_PW أو TS_AUTHKEY إلى GitHub.
 
 ملاحظات مهمة
 ------------
+- سطح المكتب KasmVNC يستمع على 127.0.0.1:6080 فقط.
+- Tailscale Serve يمرر منفذ 3000 داخل شبكة Tailscale إلى KasmVNC.
+- الرابط العام في CranL لا يعرض سطح المكتب مباشرة.
+- حالة Tailscale مؤقتة عند إعادة النشر إلا إذا استخدمت TS_AUTHKEY أو
+  volume لـ /var/lib/tailscale.
 - طبقة systemd توافقية وليست systemd الحقيقي.
-- لا تستخدم المشروع لتجاوز أنظمة حماية أو تراخيص.
 - البيانات داخل الحاوية مؤقتة؛ نزّل ملفاتك المهمة على جهازك.
-- السواب يُنشأ في /var/swap/swapfile. على CranL لا يمكن تفعيله
-  لأن الحاوية تمنع swapon؛ على VPS استخدم scripts/host-swap.sh.
-- شبكة CranL الخارجية معطلة بعطل Edge Server بتاريخ 23 أكتوبر 2026.
+- السواب معطّل افتراضيًا (SWAP_ENABLED=0) لتوفير المساحة والسرعة.
 - راجع:
   README.md
-  docs/REPORT.md
   docs/DEPLOY-CRANL.md
   docs/TESTING.md
+  docs/ARCHITECTURE.md

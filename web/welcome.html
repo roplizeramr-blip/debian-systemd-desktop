@@ -43,16 +43,18 @@
 <main>
   <h1>Welcome to your Ubuntu Cloud Desktop</h1>
   <p class="lead">
-    This is a real XFCE X11 session served through TigerVNC and noVNC.
-    Firefox, a terminal, the file manager and a systemd-compatible service
-    layer are installed. Use it like a normal Ubuntu workstation.
+    This is a real XFCE X11 session served by KasmVNC and reachable privately
+    through Tailscale. Firefox, a terminal, the file manager and a
+    systemd-compatible service layer are installed. Use it like a normal Ubuntu
+    workstation.
   </p>
 
   <div>
     <span class="tag">Ubuntu 24.04</span>
     <span class="tag">XFCE</span>
     <span class="tag">Firefox</span>
-    <span class="tag">TigerVNC</span>
+    <span class="tag">KasmVNC</span>
+    <span class="tag">Tailscale</span>
     <span class="tag">Supervisor</span>
     <span class="tag">systemctl</span>
     <span class="tag">D-Bus facade</span>
@@ -71,8 +73,10 @@
     <section class="card">
       <h2>Access</h2>
       <p>
-        The VNC password is configured by the deployment operator through the
-        <code>VNC_PW</code> variable. It is not stored in this page.
+        The desktop is reachable only through Tailscale. Link the node from the
+        public control page, then open the Tailscale IP shown there. The VNC
+        user is <code>desktop</code>; its password is set by the deployment
+        operator through <code>VNC_PW</code>.
       </p>
       <p>
         Linux user: <code>desktop</code>. The account is in the
@@ -104,7 +108,8 @@ journalctl -n 30</pre>
       <pre>sudo apt update
 sudo apt install git
 firefox --version
-systemctl status xvnc
+systemctl status kasmvnc
+systemctl status tailscaled
 systemctl restart xfce
 df -h
 free -h</pre>
@@ -120,14 +125,15 @@ free -h</pre>
     <section class="card">
       <h2>Security</h2>
       <p>
-        Use a strong <code>VNC_PW</code>, keep the URL private, and avoid
-        storing secrets in the desktop. The public endpoint is protected by
-        HTTPS, but VNC is a full remote-control session.
+        Use a strong <code>VNC_PW</code>, keep the public control URL private,
+        and avoid storing secrets in the desktop. The public endpoint is
+        protected by HTTPS; the desktop itself is exposed only to your
+        tailnet, and KasmVNC still requires its Basic Auth credentials.
       </p>
     </section>
   </div>
 
-  <footer>Ubuntu Cloud Desktop · built with Supervisor, XFCE, Firefox and noVNC.</footer>
+  <footer>Ubuntu Cloud Desktop · built with Supervisor, XFCE, Firefox, KasmVNC and Tailscale.</footer>
 </main>
 </body>
 </html>
