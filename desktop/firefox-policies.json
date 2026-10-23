@@ -1,0 +1,14 @@
+{
+  "policies": {
+    "Preferences": {
+      "intl.locale.requested": {
+        "Value": "ar",
+        "Status": "locked"
+      },
+      "intl.accept_languages": {
+        "Value": "ar, en-US, en",
+        "Status": "locked"
+      }
+    }
+  }
+}

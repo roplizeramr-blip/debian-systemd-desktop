@@ -93,6 +93,7 @@ COPY systemd/dbus/org.freedesktop.systemd1.conf /etc/dbus-1/system.d/org.freedes
 COPY scripts/ /usr/local/bin/
 COPY desktop/wallpaper.svg /usr/share/backgrounds/ubuntu-cloud.svg
 COPY desktop/firefox-syspref.js /etc/firefox/syspref.js
+COPY desktop/firefox-policies.json /usr/lib/firefox/distribution/policies.json
 COPY desktop/firefox-user.js /home/desktop/.mozilla/firefox/desktop.default-release/user.js
 COPY desktop/profiles.ini /home/desktop/.mozilla/firefox/profiles.ini
 # Keep custom launchers out of /usr/share/applications so they do not replace
