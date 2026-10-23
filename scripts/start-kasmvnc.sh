@@ -29,12 +29,17 @@ rm -f "$HOME/.vnc/"*":${KASM_DISPLAY}.pid"
 # The wrapper consumes ~/.vnc/kasmvnc.yaml, written by entrypoint.sh.  A
 # separate XFCE Supervisor unit starts the window manager on the same display;
 # -noxstartup keeps KasmVNC focused on X and the web socket.
+#
+# Loopback confinement comes from `network.interface: 127.0.0.1` in the
+# generated kasmvnc.yaml (passed through as Xvnc's -interface).  Do NOT also
+# pass -localhost: on KasmVNC 1.5.0 that is a second loopback bind for the same
+# listener and Xvnc dies with "vncExtInit: failed to bind socket: Address
+# already in use (98)".
 args=(
     ":${KASM_DISPLAY}"
     -geometry "$VNC_RESOLUTION"
     -depth 24
     -noxstartup
-    -localhost
 )
 if [ "${VNC_AUTH:-1}" = "0" ]; then
     args+=(-disableBasicAuth)
