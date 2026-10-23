@@ -170,7 +170,7 @@
 
       async function checkSwap() {
         try {
-          const response = await fetch("swap-status.json", { cache: "no-store" });
+          const response = await fetch(`swap-status.json?ts=${Date.now()}`, { cache: "no-store" });
           if (!response.ok) {
             throw new Error("swap status not ready");
           }

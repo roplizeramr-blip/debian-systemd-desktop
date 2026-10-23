@@ -21,6 +21,7 @@ must listen on the configured port and bind `0.0.0.0`.  This image listens on
 | `VNC_PORT` | `5901` |
 | `VNC_RESOLUTION` | `1440x900` |
 | `VNC_PW` | a strong unique password (maximum 8 characters) |
+| `DESKTOP_PW` | a strong Linux password for the `desktop` account (private) |
 | `VNC_FRAME_RATE` | `30` |
 | `VNC_COMPARE_FB` | `2` |
 | `VNC_ZLIB_LEVEL` | `1` |
@@ -66,7 +67,7 @@ must listen on the configured port and bind `0.0.0.0`.  This image listens on
 4. Open Terminal and run:
 
    ```bash
-   passwd
+   sudo passwd desktop
    systemctl is-system-running
    systemd-detect-virt
    firefox --version
@@ -85,14 +86,16 @@ app builds and passes its health check, then delete the old app.
 ## Swap and egress on CranL
 
 - **Swap cannot be activated.** CranL app containers do not grant
-  `CAP_SYS_ADMIN`; `swapon /var/swap/swapfile` returns `EPERM`. Moving the file
-  from `/swapfile` to `/var/swap` does not change this. The image creates the
-  file and reports the exact error at `/swap-status.json` and
-  `/var/log/swap.log`; it does not pretend the swap is active. The JSON's
-  `active` field is strict: it is `true` only when `/var/swap/swapfile` itself
-  is active. Host swap devices that the container can see (for example
-  `/swapfile` and `/swap.img`) are listed under `other_swap_devices` and do not
-  change `active`.
+  `CAP_SYS_ADMIN`; `swapon /var/swap/swapfile` returns `EPERM`. With
+  `SWAP_SPARSE=1` the kernel may instead report `skipping - it appears to have
+  holes` before the permission check; a fully allocated 64 MiB probe also
+  returned `Operation not permitted`. Moving the file from `/swapfile` to
+  `/var/swap` does not change this. The image creates the file and reports the
+  exact error at `/swap-status.json` and `/var/log/swap.log`; it does not
+  pretend the swap is active. The JSON's `active` field is strict: it is `true`
+  only when `/var/swap/swapfile` itself is active. Host swap devices that the
+  container can see (for example `/swapfile` and `/swap.img`) are listed under
+  `other_swap_devices` and do not change `active`.
 - **Egress is currently blocked.** On 23 Oct 2026 the CranL status endpoint
   reports `major_outage` for the Edge Server. App ingress (the browser URL and
   `/healthz`) still works, but DNS resolves and outbound TCP/ICMP times out.

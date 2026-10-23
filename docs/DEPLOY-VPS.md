@@ -35,7 +35,8 @@ provides one. Disable its internal swap setup:
 git clone https://github.com/roplizeramr-blip/ubuntu-systemd-desktop.git
 cd ubuntu-systemd-desktop
 
-VNC_PW='N7xQ4mK2' \
+VNC_PW='Ch4ngeM3' \
+DESKTOP_PW='Ch4ngeMe!2026' \
 SWAP_ENABLED=0 \
 docker compose up -d --build
 ```
@@ -49,7 +50,8 @@ docker run -d --name ubuntu-desktop \
   --restart unless-stopped \
   -p 3000:3000 \
   --shm-size=1g \
-  -e VNC_PW='N7xQ4mK2' \
+  -e VNC_PW='Ch4ngeM3' \
+  -e DESKTOP_PW='Ch4ngeMe!2026' \
   -e VNC_RESOLUTION='1440x900' \
   -e VNC_FRAME_RATE='30' \
   -e VNC_ZLIB_LEVEL='1' \
@@ -92,7 +94,7 @@ limit.
 ## 5. Security
 
 - Use a unique 8-character `VNC_PW`; it is the only VNC authentication factor.
-- Change the Linux password (`passwd`) and do not expose SSH unnecessarily.
+- Set `DESKTOP_PW` from the private environment; do not commit it or expose SSH unnecessarily.
 - Put TLS in front; noVNC over plain HTTP leaks keystrokes and the VNC password.
 - The container's data is ephemeral. Mount a volume for `/home/desktop` if you
   need persistence.

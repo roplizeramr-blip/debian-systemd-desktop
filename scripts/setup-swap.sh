@@ -45,22 +45,31 @@ path, active, swap_file, size_mb, error, devices = sys.argv[1:7]
 device_list = [d for d in devices.split(",") if d]
 requested_file_active = swap_file in device_list
 other_swap_devices = [d for d in device_list if d != swap_file]
-inactive_note = (
-    "The swap file is ready. Activation is blocked by the container runtime "
-    "(swapon needs CAP_SYS_ADMIN). The same file activates on a VPS or a host "
-    "that permits swap."
-)
+error_lower = error.lower()
+if "holes" in error_lower:
+    reason = (
+        "The requested file is sparse (SWAP_SPARSE=1), and the kernel refuses "
+        "swap files with holes. Use SWAP_SPARSE=0 on a VPS with enough disk. "
+        "On CranL, a fully allocated file is also rejected with EPERM."
+    )
+elif "operation not permitted" in error_lower or "permission" in error_lower:
+    reason = (
+        "The container runtime does not grant CAP_SYS_ADMIN, so swapon returns "
+        "EPERM. Use a VPS or a host that permits swap."
+    )
+elif error:
+    reason = "swapon reported: " + error
+else:
+    reason = "No activation error was recorded."
 if requested_file_active:
     note = None
 elif other_swap_devices:
     note = (
         "Other swap devices are active, but the requested swap file is not. "
-        "The requested file is ready; activation is blocked by the container "
-        "runtime (swapon needs CAP_SYS_ADMIN). The same file activates on a VPS "
-        "or a host that permits swap."
+        + reason
     )
 else:
-    note = inactive_note
+    note = "The requested swap file is ready but not active. " + reason
 data = {
     "enabled": True,
     "active": requested_file_active,
@@ -163,6 +172,6 @@ if command -v modprobe >/dev/null 2>&1 && command -v zramctl >/dev/null 2>&1; th
     fi
 fi
 
-write_status 0 "${error:-swapon failed}" ""
+write_status 0 "${error:-swapon failed}" "$(active_devices)"
 log "swap remains inactive; status written to ${SWAP_STATUS_FILE}"
 exit 0

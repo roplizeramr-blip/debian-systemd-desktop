@@ -65,19 +65,20 @@
         <li>Double-click <b>Firefox</b> to browse the web.</li>
         <li>Open <b>Terminal</b> for a shell.</li>
         <li>Use <b>Systemd Compatibility Info</b> to inspect the service layer.</li>
-        <li>Change the Linux password with <code>passwd</code>.</li>
+        <li>Change the Linux password with <code>sudo passwd desktop</code>.</li>
       </ul>
     </section>
     <section class="card">
-      <h2>Credentials</h2>
+      <h2>Access</h2>
       <p>
-        VNC password: <code>Ubuntu26</code> by default. Set the
-        <code>VNC_PW</code> environment variable when deploying to change it.
+        The VNC password is configured by the deployment operator through the
+        <code>VNC_PW</code> variable. It is not stored in this page.
       </p>
       <p>
-        Linux user: <code>desktop</code> · password: <code>ubuntu</code>.
-        The user is in the <code>sudo</code> group. Change both passwords
-        before exposing the desktop publicly.
+        Linux user: <code>desktop</code>. The account is in the
+        <code>sudo</code> group. Set or change its password from a terminal
+        with <code>sudo passwd desktop</code>; the current password is supplied
+        privately by the operator, never on this page.
       </p>
     </section>
     <section class="card">

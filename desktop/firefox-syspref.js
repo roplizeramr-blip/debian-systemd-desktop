@@ -74,5 +74,10 @@ pref("app.shield.optoutstudies.enabled", false);
 pref("browser.ping-centre.telemetry", false);
 
 // --- Arabic UI -------------------------------------------------------------
+pref("intl.locale.matchOS", false);
 pref("intl.locale.requested", "ar");
 pref("intl.accept_languages", "ar, en-US, en");
+pref("extensions.autoDisableScopes", 0);
+pref("extensions.enabledScopes", 15);
+pref("extensions.startupScanScopes", 15);
+pref("extensions.langpacks.signatures.required", false);

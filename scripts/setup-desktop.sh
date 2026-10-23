@@ -149,4 +149,27 @@ if command -v xfdesktop >/dev/null 2>&1; then
     xfdesktop --reload >/dev/null 2>&1 || true
 fi
 
+# Start Firefox once per XFCE session with the local welcome page.  This makes
+# the Arabic UI and the pre-seeded profile deterministic, and gives the user a
+# ready browser instead of an empty desktop.  Set FIREFOX_AUTOSTART=0 to disable.
+if [ "${FIREFOX_AUTOSTART:-1}" = "1" ]; then
+    cat > "$HOME/.config/autostart/firefox.desktop" <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Firefox
+Name[ar]=فايرفوكس
+Comment=Web Browser
+Comment[ar]=متصفح الويب
+Exec=firefox --new-window file:///opt/desktop/welcome.html
+X-GNOME-Autostart-enabled=true
+OnlyShowIn=XFCE;
+EOF
+    chown desktop:desktop "$HOME/.config/autostart/firefox.desktop" 2>/dev/null || true
+    if ! pgrep -u "${USER:-desktop}" -x firefox >/dev/null 2>&1; then
+        (sleep 1; setsid firefox --new-window file:///opt/desktop/welcome.html >/dev/null 2>&1 &) &
+    fi
+else
+    rm -f "$HOME/.config/autostart/firefox.desktop"
+fi
+
 echo "Desktop configuration applied for ${USER:-desktop}."

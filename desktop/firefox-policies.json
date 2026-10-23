@@ -1,6 +1,10 @@
 {
   "policies": {
     "Preferences": {
+      "intl.locale.matchOS": {
+        "Value": false,
+        "Status": "locked"
+      },
       "intl.locale.requested": {
         "Value": "ar",
         "Status": "locked"
@@ -8,6 +12,18 @@
       "intl.accept_languages": {
         "Value": "ar, en-US, en",
         "Status": "locked"
+      },
+      "extensions.autoDisableScopes": {
+        "Value": 0,
+        "Status": "default"
+      },
+      "extensions.enabledScopes": {
+        "Value": 15,
+        "Status": "default"
+      },
+      "extensions.startupScanScopes": {
+        "Value": 15,
+        "Status": "default"
       }
     }
   }

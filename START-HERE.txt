@@ -24,6 +24,7 @@ C:\Users\East-Sound\Desktop\ubuntu-systemd-desktop
    VNC_PORT=5901
    VNC_RESOLUTION=1440x900
    VNC_PW=كلمة-مرور-قوية-8-أحرف
+   DESKTOP_PW=كلمة-مرور-لينكس-قوية
    VNC_FRAME_RATE=30
    VNC_ZLIB_LEVEL=1
    SWAP_ENABLED=1
@@ -33,16 +34,16 @@ C:\Users\East-Sound\Desktop\ubuntu-systemd-desktop
    SYSTEMD_DETECT_VIRT=none
    HIDE_CONTAINER=0
 5. افتح رابط التطبيق، اضغط Open Desktop، وأدخل كلمة مرور VNC.
-6. من داخل الطرفية غيّر كلمة مرور المستخدم:
-   passwd
+6. من داخل الطرفية غيّر كلمة مرور المستخدم إن أردت:
+   sudo passwd desktop
 
-بيانات افتراضية
----------------
-VNC password: Ubuntu26
+بيانات الدخول
+-------------
+VNC password: القيمة التي وضعتها في VNC_PW
 Linux user: desktop
-Linux password: D3sk!2026
+Linux password: القيمة التي وضعتها في DESKTOP_PW
 
-غيّرها قبل أي استخدام عام.
+لا توجد كلمة مرور افتراضية مكتوبة داخل الصورة أو المستودع.
 
 ملاحظات مهمة
 ------------

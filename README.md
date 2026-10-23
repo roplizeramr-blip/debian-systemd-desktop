@@ -84,7 +84,9 @@ Then open `http://localhost:3000`, click **Open Desktop**, and enter the VNC
 password. The default VNC password in the image is `Ubuntu26`; always override
 it for a public deployment. TigerVNC VNC passwords are limited to **8
 characters** (older VNC authentication); use the strongest 8-character value you
-can. The default Linux password is `D3sk!2026`; change it after first login.
+can. The Linux password is applied at container start from the private
+`DESKTOP_PW` environment variable; set it before deploying. If it is unset, the
+`desktop` account stays locked and only VNC login works.
 
 ## Environment variables
 
@@ -94,6 +96,7 @@ can. The default Linux password is `D3sk!2026`; change it after first login.
 | `VNC_PORT` | `5901` | Internal TigerVNC port, bound to loopback. |
 | `VNC_RESOLUTION` | `1440x900` | Desktop geometry. |
 | `VNC_PW` | `Ubuntu26` | VNC password, **maximum 8 characters**. **Change for public use.** |
+| `DESKTOP_PW` | *(unset)* | Linux password for the `desktop` account. Set it from the deployment's private environment; the image does not bake a Linux password. If unset, the account stays locked. |
 | `VNC_FRAME_RATE` | `30` | Maximum updates per second per viewer. 30 is smooth and light; 60 is more responsive but uses more CPU/bandwidth. |
 | `VNC_COMPARE_FB` | `2` | TigerVNC framebuffer comparison mode: `0` off, `1` always, `2` auto. |
 | `VNC_ZLIB_LEVEL` | `1` | zlib compression level. `1` is the fastest; `9` is smallest. |
@@ -148,12 +151,16 @@ blocks boot if the operation fails:
    landing page) and logged to `/var/log/swap.log`.
 
 **Important:** CranL app containers do not grant `CAP_SYS_ADMIN`, so `swapon`
-returns `EPERM`. Changing the path to `/var/swap` does not change that; the
-kernel blocks the operation itself, not the folder. The file is ready, but it
-cannot become active swap inside a CranL app. A VPS or any host that permits
-swap can activate the same file. On a VPS, run `sudo scripts/host-swap.sh` on
-the **host** and set `SWAP_ENABLED=0` in the container so it does not create a
-second file. See [docs/DEPLOY-VPS.md](docs/DEPLOY-VPS.md).
+returns `EPERM`. With `SWAP_SPARSE=1` on CranL, `swapon` may report
+`skipping - it appears to have holes` first; a fully allocated 64 MiB probe was
+also rejected with `Operation not permitted`, so active swap is impossible in
+this container either way. Changing the path to `/var/swap` does not change
+that; the kernel blocks the operation itself, not the folder. The file is
+ready, but it cannot become active swap inside a CranL app. A VPS or any host
+that permits swap can activate the same file. On a VPS, run
+`sudo scripts/host-swap.sh` on the **host** and set `SWAP_ENABLED=0` in the
+container so it does not create a second file. See
+[docs/DEPLOY-VPS.md](docs/DEPLOY-VPS.md).
 
 The status JSON is deliberately strict: `active` is `true` only when
 `/var/swap/swapfile` itself is listed by `swapon --show`. A container may see
@@ -166,20 +173,21 @@ visible.
 
 | Item | Default |
 |---|---|
-| VNC password | `Ubuntu26` (`VNC_PW`) |
+| VNC password | `Ubuntu26` (`VNC_PW`); override for every public deployment |
 | Linux user | `desktop` |
-| Linux password | `D3sk!2026` |
+| Linux password | `DESKTOP_PW` (private deployment variable; no default) |
 | sudo | user is in the `sudo` group; password required |
 
 Change the Linux password inside the desktop:
 
 ```bash
-passwd
+sudo passwd desktop
 ```
 
 - VNC password must be **8 characters or fewer**; longer values are truncated by the legacy VNC authentication scheme.
-- Changing `VNC_PW` requires a container restart. The Linux password is baked
-into the image at build time; change it after first login.
+- Changing `VNC_PW` or `DESKTOP_PW` requires a container restart. The Linux
+  password is applied from `DESKTOP_PW` at start; the public image does not bake
+  a Linux secret.
 
 ## systemd compatibility matrix
 
@@ -328,7 +336,7 @@ See [docs/TESTING.md](docs/TESTING.md) for expected output and browser checks.
 ## Security recommendations
 
 1. Set a strong, unique `VNC_PW` (8 characters maximum) before deployment.
-2. Change the `desktop` Linux password after first login.
+2. Set a strong `DESKTOP_PW` in the private app environment; never commit it.
 3. Do not store SSH keys, tokens or personal data in the container.
 4. Keep the URL private; anyone with the URL and password has full control.
 5. Rebuild regularly to pick up Ubuntu and Firefox security updates.

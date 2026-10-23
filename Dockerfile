@@ -27,7 +27,7 @@ ENV LANG=en_US.UTF-8 \
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates curl wget gnupg \
-        locales tzdata sudo procps psmisc iproute2 net-tools hostname less nano \
+        locales tzdata sudo passwd procps psmisc iproute2 net-tools hostname less nano \
         dbus dbus-x11 \
         python3 python3-dbus python3-gi gir1.2-glib-2.0 \
         supervisor systemd \
@@ -67,6 +67,8 @@ RUN install -d -m 0755 /etc/apt/keyrings \
 RUN sed -i 's/^# *en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen \
     && locale-gen
 
+# Do not bake a Linux password into the public image. The entrypoint applies
+# DESKTOP_PW from the deployment's private environment at container start.
 RUN set -eux; \
     if getent passwd desktop >/dev/null; then userdel -r desktop 2>/dev/null || true; fi; \
     for existing_user in $(getent passwd 1000 | cut -d: -f1); do userdel -r "$existing_user" 2>/dev/null || true; done; \
@@ -75,7 +77,6 @@ RUN set -eux; \
         groupadd -g 1000 desktop 2>/dev/null || groupadd desktop; \
     fi; \
     useradd -m -u 1000 -g desktop -s /bin/bash -G sudo desktop; \
-    echo 'desktop:D3sk!2026' | chpasswd; \
     passwd -l root; \
     install -d -m 0755 -o desktop -g desktop /home/desktop/Desktop; \
     install -d -m 0755 -o desktop -g desktop /home/desktop/.config; \
@@ -149,6 +150,8 @@ RUN mkdir -p /etc/systemd/system/graphical.target.wants \
 RUN cp /opt/desktop/applications/*.desktop /home/desktop/Desktop/ \
     && chmod 0755 /home/desktop/Desktop/*.desktop \
     && mkdir -p /home/desktop/.mozilla/firefox/desktop.default-release /etc/supervisor/conf.d \
+    && install -d -m 0755 -o desktop -g desktop /home/desktop/.mozilla/firefox/desktop.default-release/extensions \
+    && cp /usr/lib/firefox/browser/extensions/langpack-ar@firefox.mozilla.org.xpi /home/desktop/.mozilla/firefox/desktop.default-release/extensions/ \
     && chown -R desktop:desktop /home/desktop /opt/desktop \
     && install -d -m 0755 /var/log/supervisor /var/log/journal \
     && install -d -m 0700 /var/swap \

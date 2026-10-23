@@ -84,6 +84,20 @@ printf '%s\n' "$VNC_PW" | tigervncpasswd -f > /home/desktop/.vnc/passwd
 chown desktop:desktop /home/desktop/.vnc/passwd
 chmod 0600 /home/desktop/.vnc/passwd
 
+# Linux login/sudo password. Supply DESKTOP_PW from the deployment's private
+# environment so the public image and repository never bake a secret. If it is
+# absent, the account stays locked and only the VNC password is usable.
+if [ -n "${DESKTOP_PW:-}" ]; then
+    if printf 'desktop:%s\n' "$DESKTOP_PW" | chpasswd 2>/dev/null; then
+        usermod -U desktop 2>/dev/null || true
+        echo "[desktop] Linux password updated from DESKTOP_PW"
+    else
+        echo "[desktop] WARNING: could not set Linux password from DESKTOP_PW"
+    fi
+else
+    echo "[desktop] DESKTOP_PW is not set; Linux account desktop remains locked"
+fi
+
 cat > /home/desktop/.vnc/xstartup <<'XSTARTUP'
 #!/bin/sh
 unset SESSION_MANAGER

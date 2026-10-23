@@ -77,5 +77,17 @@ user_pref("app.shield.optoutstudies.enabled", false);
 user_pref("browser.ping-centre.telemetry", false);
 
 // --- Arabic UI -------------------------------------------------------------
+user_pref("intl.locale.matchOS", false);
 user_pref("intl.locale.requested", "ar");
 user_pref("intl.accept_languages", "ar, en-US, en");
+
+// The Arabic language pack is installed system-wide under
+// /usr/lib/firefox/browser/extensions. Firefox auto-disables application-scope
+// add-ons by default, so explicitly allow the application scope to load it.
+user_pref("extensions.autoDisableScopes", 0);
+user_pref("extensions.enabledScopes", 15);
+user_pref("extensions.startupScanScopes", 15);
+// The pack is the official Mozilla ar.xpi for this Firefox release. Disabling
+// the signature requirement avoids a false negative under the container's
+// seccomp profile while keeping the image's language pack immutable.
+user_pref("extensions.langpacks.signatures.required", false);
