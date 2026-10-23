@@ -44,13 +44,40 @@ else
     set_prop xfce4-desktop /backdrop/screen0/monitor0/workspace0/image-style int 5
 fi
 
-# A lightweight, quiet desktop: no compositor, no screen blanking.
+# --- Performance: no compositor, no animations, no shadows -----------------
 set_prop xfwm4 /general/use_compositing bool false
+set_prop xfwm4 /general/box_move bool false
+set_prop xfwm4 /general/box_resize bool false
+set_prop xfwm4 /general/cycle_draw_frame bool false
+set_prop xfwm4 /general/show_frame_shadow bool false
+set_prop xfwm4 /general/show_popup_shadow bool false
+set_prop xfwm4 /general/snap_to_border bool false
+set_prop xfwm4 /general/snap_to_window bool false
 set_prop xfwm4 /general/workspace_count int 1
+set_prop xfwm4 /general/title_font string "Noto Sans Bold 10"
+set_prop xfwm4 /general/title_alignment string "left"
+
+# --- GTK / Xsettings: flat, dark and animation-free ------------------------
+set_prop xsettings /Gtk/EnableAnimations bool false
+set_prop xsettings /Net/ThemeName string "Adwaita-dark"
+set_prop xsettings /Net/IconThemeName string "Adwaita"
+set_prop xsettings /Gtk/FontName string "Noto Sans 10"
+set_prop xsettings /Gtk/MonospaceFontName string "Noto Sans Mono 10"
+set_prop xsettings /Xft/Antialias int 1
+set_prop xsettings /Xft/Hinting int 1
+set_prop xsettings /Xft/HintStyle string "hintslight"
+set_prop xsettings /Xft/RGBA string "none"
+set_prop xsettings /Net/EnableEventSounds bool false
+set_prop xsettings /Net/EnableInputFeedbackSounds bool false
+
+# --- Session, screensaver and power ---------------------------------------
+set_prop xfce4-session /general/SaveOnExit bool false
+set_prop xfce4-session /general/AutoSave bool false
+set_prop xfce4-screensaver /saver/enabled bool false
+set_prop xfce4-screensaver /lock/enabled bool false
 set_prop xfce4-power-manager /xfce4-power-manager/blank-on-ac int 0
 set_prop xfce4-power-manager /xfce4-power-manager/dpms-enabled bool false
 set_prop xfce4-power-manager /xfce4-power-manager/inactivity-on-ac int 0
-set_prop xfce4-session /general/SaveOnExit bool false
 
 # Desktop icons.
 set_prop xfce4-desktop /desktop-icons/file-icons/show-home bool true
@@ -63,6 +90,50 @@ set_prop xfce4-desktop /desktop-icons/file-icons/show-unknown bool true
 if command -v setxkbmap >/dev/null 2>&1; then
     setxkbmap -layout us,ara -option grp:alt_shift_toggle >/dev/null 2>&1 || true
 fi
+
+# No screen blanking or DPMS: a remote desktop should not go black.
+if command -v xset >/dev/null 2>&1; then
+    xset s off -dpms >/dev/null 2>&1 || true
+fi
+
+# Do not start services we explicitly replaced with lightweight settings.
+install -d "$HOME/.config/autostart"
+cat > "$HOME/.config/autostart/xfce4-power-manager.desktop" <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Power Manager
+Hidden=true
+EOF
+cat > "$HOME/.config/autostart/xfce4-screensaver.desktop" <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Screensaver
+Hidden=true
+EOF
+
+# Persist the flat GTK look for GTK3 and GTK4 applications.
+install -d "$HOME/.config/gtk-3.0" "$HOME/.config/gtk-4.0"
+for gtk_dir in "$HOME/.config/gtk-3.0" "$HOME/.config/gtk-4.0"; do
+    cat > "$gtk_dir/settings.ini" <<'EOF'
+[Settings]
+gtk-enable-animations=0
+gtk-theme-name=Adwaita-dark
+gtk-icon-theme-name=Adwaita
+gtk-font-name=Noto Sans 10
+gtk-application-prefer-dark-theme=1
+EOF
+done
+
+# A light terminal with a sensible scrollback and no cursor blink.
+install -d "$HOME/.config/xfce4/terminal"
+cat > "$HOME/.config/xfce4/terminal/terminalrc" <<'EOF'
+[Configuration]
+FontName=Noto Sans Mono 10
+MiscAlwaysShowTabs=FALSE
+MiscShowUnsafePasteDialog=FALSE
+MiscCursorBlinks=FALSE
+ScrollingLines=2000
+EOF
 
 # Firefox is the default browser.
 if command -v xdg-settings >/dev/null 2>&1; then

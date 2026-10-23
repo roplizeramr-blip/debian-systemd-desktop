@@ -12,6 +12,16 @@ export VNC_PORT="${VNC_PORT:-5901}"
 export NOVNC_PORT="${NOVNC_PORT:-${PORT:-3000}}"
 export TZ="${TZ:-Africa/Cairo}"
 export SYSTEMD_DETECT_VIRT="${SYSTEMD_DETECT_VIRT:-none}"
+export SWAP_ENABLED="${SWAP_ENABLED:-1}"
+export SWAP_DIR="${SWAP_DIR:-/var/swap}"
+export SWAP_FILE="${SWAP_FILE:-${SWAP_DIR}/swapfile}"
+export SWAP_SIZE_MB="${SWAP_SIZE_MB:-6144}"
+export SWAP_SPARSE="${SWAP_SPARSE:-0}"
+export VNC_FRAME_RATE="${VNC_FRAME_RATE:-30}"
+export VNC_COMPARE_FB="${VNC_COMPARE_FB:-2}"
+export VNC_ZLIB_LEVEL="${VNC_ZLIB_LEVEL:-1}"
+export VNC_COMPRESS_LEVEL="${VNC_COMPRESS_LEVEL:-1}"
+export VNC_QUALITY="${VNC_QUALITY:-8}"
 
 if ! locale -a 2>/dev/null | grep -qi '^en_US\.utf8$'; then
     export LANG="C.UTF-8"
@@ -39,6 +49,20 @@ install -d -m 0700 -o desktop -g desktop /run/user/1000
 install -d -m 0700 -o desktop -g desktop /home/desktop/.vnc
 install -d -m 0755 -o desktop -g desktop \
     /home/desktop/.config /home/desktop/.cache /home/desktop/Desktop
+
+# Best-effort kernel memory tuning. /proc/sys is read-only in some containers;
+# a failure here must never stop the desktop from starting.
+for setting in \
+    "vm.swappiness=10" \
+    "vm.vfs_cache_pressure=50" \
+    "vm.dirty_background_ratio=5" \
+    "vm.dirty_ratio=10" \
+    "fs.inotify.max_user_watches=524288"; do
+    sysctl -w "$setting" >/dev/null 2>&1 || true
+done
+
+echo "[desktop] VNC ${VNC_RESOLUTION} on ${VNC_PORT}; frame rate ${VNC_FRAME_RATE}; zlib ${VNC_ZLIB_LEVEL}; compress ${VNC_COMPRESS_LEVEL}; quality ${VNC_QUALITY}"
+echo "[desktop] swap ${SWAP_SIZE_MB} MiB at ${SWAP_FILE} (sparse=${SWAP_SPARSE}, enabled=${SWAP_ENABLED})"
 
 # A stable machine-id and boot timestamp make hostnamectl/journalctl useful.
 if [ ! -s /etc/machine-id ]; then
@@ -75,6 +99,14 @@ chown desktop:desktop /home/desktop/.vnc/xstartup
 # creates the real socket at /run/systemd/journal/dev-log.
 rm -f /dev/log 2>/dev/null || true
 ln -sfn /run/systemd/journal/dev-log /dev/log 2>/dev/null || true
+
+# Create the swap file in a writable folder and try to activate it.  This is
+# asynchronous on purpose: a 6 GiB file must never delay VNC/noVNC startup.
+# On CranL the file is created but swapon is blocked by the container runtime;
+# setup-swap.sh records the exact result in the noVNC status JSON.
+if [ "${SWAP_ENABLED:-1}" = "1" ]; then
+    /usr/local/bin/setup-swap.sh >/var/log/swap.log 2>&1 &
+fi
 
 # Optional compatibility switch: removing /.dockerenv makes some simple
 # container checks less noisy.  It is disabled by default and is not a

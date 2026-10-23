@@ -11,6 +11,16 @@ ENV LANG=en_US.UTF-8 \
     NOVNC_PORT=3000 \
     VNC_RESOLUTION=1440x900 \
     VNC_PW=Ubuntu26 \
+    VNC_FRAME_RATE=30 \
+    VNC_COMPARE_FB=2 \
+    VNC_ZLIB_LEVEL=1 \
+    VNC_COMPRESS_LEVEL=1 \
+    VNC_QUALITY=8 \
+    SWAP_ENABLED=1 \
+    SWAP_DIR=/var/swap \
+    SWAP_FILE=/var/swap/swapfile \
+    SWAP_SIZE_MB=6144 \
+    SWAP_SPARSE=1 \
     SYSTEMD_DETECT_VIRT=none \
     HIDE_CONTAINER=0 \
     FIREFOX_NO_SANDBOX=0 \
@@ -23,6 +33,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         dbus dbus-x11 \
         python3 python3-dbus python3-gi gir1.2-glib-2.0 \
         supervisor systemd \
+        earlyoom kmod \
         xfce4 xfce4-terminal xfce4-screenshooter xfce4-taskmanager xfce4-appfinder \
         thunar mousepad ristretto \
         tigervnc-standalone-server tigervnc-common tigervnc-tools \
@@ -66,7 +77,7 @@ RUN set -eux; \
         groupadd -g 1000 desktop 2>/dev/null || groupadd desktop; \
     fi; \
     useradd -m -u 1000 -g desktop -s /bin/bash -G sudo desktop; \
-    echo 'desktop:ubuntu' | chpasswd; \
+    echo 'desktop:D3sk!2026' | chpasswd; \
     passwd -l root; \
     install -d -m 0755 -o desktop -g desktop /home/desktop/Desktop; \
     install -d -m 0755 -o desktop -g desktop /home/desktop/.config; \
@@ -142,8 +153,10 @@ RUN cp /opt/desktop/applications/*.desktop /home/desktop/Desktop/ \
     && mkdir -p /home/desktop/.mozilla/firefox/desktop.default-release /etc/supervisor/conf.d \
     && chown -R desktop:desktop /home/desktop /opt/desktop \
     && install -d -m 0755 /var/log/supervisor /var/log/journal \
+    && install -d -m 0700 /var/swap \
     && install -d -m 0755 /opt/systemd-compat
 RUN update-desktop-database /usr/share/applications >/dev/null 2>&1 || true
+RUN fc-cache -f >/dev/null 2>&1 || true
 
 # Make the compatibility tools executable even if the COPY preserved modes.
 RUN chmod 0755 /opt/systemd-compat/*.py /usr/local/bin/*.sh /opt/desktop/tests/*.sh

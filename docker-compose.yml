@@ -12,13 +12,21 @@ services:
       - "3000:3000"
     shm_size: "1gb"
     environment:
-      NOVNC_PORT: "3000"
-      VNC_PORT: "5901"
-      VNC_RESOLUTION: "1440x900"
-      VNC_PW: "Ubuntu26"
-      TZ: "Africa/Cairo"
-      SYSTEMD_DETECT_VIRT: "none"
-      HIDE_CONTAINER: "0"
+      NOVNC_PORT: "${NOVNC_PORT:-3000}"
+      VNC_PORT: "${VNC_PORT:-5901}"
+      VNC_RESOLUTION: "${VNC_RESOLUTION:-1440x900}"
+      VNC_PW: "${VNC_PW:-Ubuntu26}"
+      VNC_FRAME_RATE: "${VNC_FRAME_RATE:-30}"
+      VNC_COMPARE_FB: "${VNC_COMPARE_FB:-2}"
+      VNC_ZLIB_LEVEL: "${VNC_ZLIB_LEVEL:-1}"
+      VNC_COMPRESS_LEVEL: "${VNC_COMPRESS_LEVEL:-1}"
+      VNC_QUALITY: "${VNC_QUALITY:-8}"
+      SWAP_ENABLED: "${SWAP_ENABLED:-1}"
+      SWAP_SIZE_MB: "${SWAP_SIZE_MB:-6144}"
+      SWAP_SPARSE: "${SWAP_SPARSE:-0}"
+      TZ: "${TZ:-Africa/Cairo}"
+      SYSTEMD_DETECT_VIRT: "${SYSTEMD_DETECT_VIRT:-none}"
+      HIDE_CONTAINER: "${HIDE_CONTAINER:-0}"
     healthcheck:
       test: ["CMD", "/usr/local/bin/healthcheck.sh"]
       interval: 30s

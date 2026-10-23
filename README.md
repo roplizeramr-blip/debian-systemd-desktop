@@ -18,7 +18,15 @@ see a coherent Linux system, while Supervisor remains the real process manager.
 ## Features
 
 - Ubuntu 24.04 LTS, XFCE, TigerVNC + noVNC (browser only, no client install).
-- Firefox from Mozilla's official APT repository, with Arabic localization.
+- Low-latency VNC profile: 30 fps cap, fast Tight/zlib compression, framebuffer
+  comparison, improved hextile, `-noreset` session persistence, and an optimized
+  noVNC URL (`quality=6`, `compression=2`, remote resize, auto-reconnect).
+- A 6 GiB swap file at `/var/swap/swapfile` (writable, non-standard path), with
+  an honest status page when the container runtime blocks `swapon`.
+- `earlyoom` userspace OOM protection and best-effort kernel memory tuning for
+  the 2 GiB desktop.
+- Firefox from Mozilla's official APT repository, with Arabic localization and
+  memory/network prefs tuned for a 2 GiB VNC session.
 - Supervisor as PID 1; the container command is `/usr/local/bin/systemd`
   (a symlink to Supervisord) so `/proc/1/comm` reads `systemd`.
 - `systemctl` shim with start/stop/restart/status/enable/disable, unit files,
@@ -73,10 +81,10 @@ docker run -d --name ubuntu-systemd-desktop \
 ```
 
 Then open `http://localhost:3000`, click **Open Desktop**, and enter the VNC
-password. The default password in the image is `Ubuntu26`; always override it
-for a public deployment. TigerVNC VNC passwords are limited to **8 characters**
-(older VNC authentication); use the strongest 8-character value you can, and
-change the Linux password after first login.
+password. The default VNC password in the image is `Ubuntu26`; always override
+it for a public deployment. TigerVNC VNC passwords are limited to **8
+characters** (older VNC authentication); use the strongest 8-character value you
+can. The default Linux password is `D3sk!2026`; change it after first login.
 
 ## Environment variables
 
@@ -86,6 +94,16 @@ change the Linux password after first login.
 | `VNC_PORT` | `5901` | Internal TigerVNC port, bound to loopback. |
 | `VNC_RESOLUTION` | `1440x900` | Desktop geometry. |
 | `VNC_PW` | `Ubuntu26` | VNC password, **maximum 8 characters**. **Change for public use.** |
+| `VNC_FRAME_RATE` | `30` | Maximum updates per second per viewer. 30 is smooth and light; 60 is more responsive but uses more CPU/bandwidth. |
+| `VNC_COMPARE_FB` | `2` | TigerVNC framebuffer comparison mode: `0` off, `1` always, `2` auto. |
+| `VNC_ZLIB_LEVEL` | `1` | zlib compression level. `1` is the fastest; `9` is smallest. |
+| `VNC_COMPRESS_LEVEL` | `1` | Tight encoding compression level. `1` is the fastest. |
+| `VNC_QUALITY` | `8` | Tight/JPEG quality (`0`–`9`). |
+| `SWAP_ENABLED` | `1` | Create `/var/swap/swapfile` and try to activate it. |
+| `SWAP_SIZE_MB` | `6144` | Swap file size in MiB (6 GiB). |
+| `SWAP_DIR` | `/var/swap` | Writable swap directory. |
+| `SWAP_FILE` | `/var/swap/swapfile` | Swap file path. |
+| `SWAP_SPARSE` | `1` (image) / `0` (Compose) | `1` creates a sparse file (safe for small container disks). Use `0` on a VPS so the swap file is fully allocated. |
 | `TZ` | `Africa/Cairo` | Container timezone. |
 | `LANG` / `LC_ALL` | `en_US.UTF-8` | Locale; falls back to `C.UTF-8`. |
 | `SYSTEMD_DETECT_VIRT` | `none` | Value returned by `systemd-detect-virt`. |
@@ -94,13 +112,56 @@ change the Linux password after first login.
 | `DESKTOP_HOSTNAME` | `ubuntu-desktop` | Hostname written to `/etc/hostname` and applied when permitted. |
 | `VNC_BIND_ALL` | `0` | If `1`, Xvnc listens on all interfaces instead of loopback. |
 
+## Performance profile
+
+The desktop is tuned for a latency-bound browser session, not for a LAN with a
+native VNC client:
+
+- **Xvnc:** 30 fps cap, `CompareFB=2`, `ZlibLevel=1`, `CompressLevel=1`,
+  `Quality=8`, improved hextile, and `-noreset` so a browser reconnect returns
+  to the same XFCE session instead of restarting it.
+- **noVNC:** `quality=6`, `compression=2`, remote resize, auto-reconnect and a
+  short reconnect delay.
+- **XFCE:** compositor, shadows, window animations, smooth scrolling, blanking
+  and DPMS are disabled; the GTK theme is flat and dark.
+- **Firefox:** software rendering, two content processes, bounded caches,
+  fewer speculative network connections, no telemetry/studies.
+- **Memory:** `earlyoom` protects Xvnc/XFCE from a runaway browser process; VM
+  sysctls are applied best-effort.
+- **Swap:** a 6 GiB file at `/var/swap/swapfile`; see below for the container
+  runtime limitation.
+
+If your link is slow, lower `VNC_RESOLUTION` (for example `1280x800`) before
+lowering quality. If your link is fast and you want more responsiveness, raise
+`VNC_FRAME_RATE` to `60`.
+
+## Swap
+
+The image creates a **6 GiB swap file at `/var/swap/swapfile`**, not at
+`/swapfile`. The path is deliberately a writable folder, and the script never
+blocks boot if the operation fails:
+
+1. `setup-swap.sh` creates a sparse or fully allocated file (`SWAP_SPARSE`).
+2. It runs `mkswap` and tries `swapon`.
+3. If disk swap is blocked, it tries a compressed `zram` device.
+4. The result is written to `/usr/share/novnc/swap-status.json` (shown on the
+   landing page) and logged to `/var/log/swap.log`.
+
+**Important:** CranL app containers do not grant `CAP_SYS_ADMIN`, so `swapon`
+returns `EPERM`. Changing the path to `/var/swap` does not change that; the
+kernel blocks the operation itself, not the folder. The file is ready, but it
+cannot become active swap inside a CranL app. A VPS or any host that permits
+swap can activate the same file. On a VPS, run `sudo scripts/host-swap.sh` on
+the **host** and set `SWAP_ENABLED=0` in the container so it does not create a
+second file. See [docs/DEPLOY-VPS.md](docs/DEPLOY-VPS.md).
+
 ## Credentials
 
 | Item | Default |
 |---|---|
 | VNC password | `Ubuntu26` (`VNC_PW`) |
 | Linux user | `desktop` |
-| Linux password | `ubuntu` |
+| Linux password | `D3sk!2026` |
 | sudo | user is in the `sudo` group; password required |
 
 Change the Linux password inside the desktop:
@@ -166,6 +227,12 @@ See [docs/DEPLOY-CRANL.md](docs/DEPLOY-CRANL.md). The short version:
 
 The free plan allows two apps. Keep the old desktop running until the new app
 passes the health check, then delete the old one from the dashboard.
+
+> **CranL status, 23 Oct 2026:** the Edge Server component reports a
+> `major_outage`. Ingress to apps still works, but app **egress** (DNS resolves,
+> TCP/ICMP times out) is blocked. This is a platform outage, not an image
+> problem. Also, CranL app containers cannot activate a swap file; see the
+> [Swap](#swap) section. Use a VPS for immediate internet plus active swap.
 
 ## GitHub Actions / GHCR
 
@@ -242,6 +309,11 @@ See [docs/TESTING.md](docs/TESTING.md) for expected output and browser checks.
   anti-cheat or licence enforcement.
 - **No snap.** Firefox comes from Mozilla's APT repository instead.
 - **No audio device / no GPU acceleration.** It is a VNC desktop.
+- **CranL apps cannot activate swap.** `swapon` needs a capability the runtime
+  does not grant; `/var/swap/swapfile` is created and reported, but remains
+  inactive. A VPS/host with swap enabled is required for active 6 GiB swap.
+- **CranL egress is currently down.** The Edge Server reports a major outage;
+  apps can be reached from the browser, but they cannot reach the internet.
 - **Data is ephemeral.** Files live in the container; redeploys can erase them.
 - **Public VNC is sensitive.** Use a strong password and a private URL. TLS is
   terminated at CranL; noVNC uses WSS to the edge.

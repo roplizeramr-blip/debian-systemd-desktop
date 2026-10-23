@@ -376,3 +376,93 @@ CranL يمكنه البناء مباشرة من مستودع GitHub باستخد
 - إضافة مراقبة للذاكرة وCPU.
 - تقييد الوصول عبر Cloudflare Access أو VPN إن أمكن.
 - توثيق أي تطبيق إضافي يحتاج وحدات systemd.
+
+---
+
+## 14. تحديث 23 أكتوبر 2026 — الأداء والسواب
+
+### 14.1 تحسين VNC ليكون سريعًا
+
+تم ضبط TigerVNC على ملف منخفض الكمون بدل الإعداد الافتراضي:
+
+```text
+FrameRate=30  CompareFB=2  ZlibLevel=1  CompressLevel=1
+Quality=8     ImprovedHextile  UseBlacklist  -noreset
+```
+
+- `FrameRate=30` يقلل الفrames غير الضرورية ويبقي الحركة سلسة.
+- `CompareFB=2` يتجاهل المناطق غير المتغيرة من الشاشة.
+- `ZlibLevel=1` و`CompressLevel=1` يستخدمان أسرع ضغط بدل أصغر حجم.
+- `Quality=8` يحافظ على وضوح النص مع حجم معقول.
+- `-noreset` يبقي جلسة XFCE حية عند إغلاق المتصفح، فإعادة الاتصال
+  لا تعيد تشغيل سطح المكتب من الصفر.
+
+صفحة noVNC تستخدم:
+
+```text
+quality=6&compression=2&resize=remote&autoconnect=1
+reconnect=1&reconnect_delay=1000&show_dot=1&path=websockify
+```
+
+كما تم تعطيل compositor وظلال النوافذ وحركات XFCE، وتثبيت ثيم
+`Adwaita-dark` مسطح، وتعطيل blanking/DPMS، وضبط Firefox على
+`dom.ipc.processCount=2` و`browser.tabs.unloadOnLowMemory=true`
+وتعطيل التسريع العتادي والـtelemetry.
+
+### 14.2 السواب الكبير في مجلد مسموح
+
+تمت إضافة `scripts/setup-swap.sh`:
+
+- المسار: `/var/swap/swapfile` وليس `/swapfile`.
+- الحجم الافتراضي: `6144 MiB` (6 GiB).
+- على الحاويات: `SWAP_SPARSE=1` لإنشاء ملف sparse لا يملأ قرص التطبيق.
+- على VPS: `SWAP_SPARSE=0` ثم `fallocate` لملف كامل بلا ثقوب.
+- يحاول `mkswap` ثم `swapon`، وإن فشل يحاول `zram`، ثم يكتب
+  النتيجة في `/usr/share/novnc/swap-status.json` و`/var/log/swap.log`.
+- لا يوقف إقلاع سطح المكتب إذا فشل التفعيل.
+
+**النتيجة على CranL:** الحاوية لا تمنح `CAP_SYS_ADMIN`، لذلك
+`swapon` يرجع `EPERM`. تغيير المسار من `/swapfile` إلى `/var/swap`
+لا يحل المشكلة لأن المنع من نواة/صلاحيات الحاوية، وليس من المجلد.
+الملف يُنشأ ويظهر في صفحة الحالة، لكنه لا يصبح سواب نشطًا. السواب
+الحقيقي 6 GiB يحتاج VPS أو مضيفًا يسمح بـ`swapon`.
+
+### 14.3 عطل شبكة CranL
+
+في 23 أكتوبر 2026، نقطة حالة CranL تعرض:
+
+- `overall: major_outage`
+- `Edge Server`: `major_outage`، صفر نجاح من 1138 فحصًا.
+- بدأ العطل في 22 أكتوبر 2026.
+
+داخل تطبيقات CranL: DNS يعمل، لكن كل اتصال TCP/ICMP خارجي ينتهي
+بمهلة. الوصول إلى التطبيق من المتصفح يعمل، بينما Firefox و`apt`
+و`curl` داخل سطح المكتب لا تصل إلى الإنترنت. هذا عطل منصة وليس
+خطأً في الصورة.
+
+### 14.4 المساران
+
+| الهدف | CranL الآن | VPS |
+|---|---|---|
+| سطح مكتب XFCE + noVNC | ✅ | ✅ |
+| VNC سريع | ✅ | ✅ |
+| 6 GiB سواب نشط | ❌ (`EPERM`) | ✅ (`host-swap.sh`) |
+| إنترنت خارجي | ❌ (عطل Edge) | ✅ |
+| تكلفة | مجاني | حسب المزود |
+
+### 14.5 بيانات الدخول
+
+- كلمة مرور VNC خاصة بكل نشر، بحد أقصى 8 أحرف، ولا تُحفظ في المستودع.
+- كلمة مرور المستخدم `desktop` الافتراضية: `D3sk!2026` (غيّرها بعد أول دخول).
+- `root` مقفول، و`desktop` عضو في `sudo` ويحتاج كلمة المرور.
+
+### 14.6 ملفات جديدة
+
+| الملف | الوظيفة |
+|---|---|
+| `scripts/setup-swap.sh` | إنشاء وتفعيل السواب وكتابة الحالة. |
+| `scripts/swap-status.sh` | عرض حالة السواب من الطرفية. |
+| `scripts/system-status.sh` | لوحة حية للمعالج والذاكرة والسواب والخدمات. |
+| `scripts/host-swap.sh` | سواب 6 GiB على مضيف VPS. |
+| `docs/DEPLOY-VPS.md` | نشر VPS مع سواب حقيقي وإنترنت. |
+| `desktop/applications/system-dashboard.desktop` | أيقونة لوحة النظام. |

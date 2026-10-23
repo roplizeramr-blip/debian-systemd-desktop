@@ -48,6 +48,32 @@ check "health endpoint" curl -fsS "http://127.0.0.1:${PORT}/healthz"
 check_contains "Firefox is installed" "Mozilla Firefox" firefox --version
 check "D-Bus manager is introspectable" bash -c 'busctl --system introspect org.freedesktop.systemd1 /org/freedesktop/systemd1 >/dev/null 2>&1'
 
+# Performance and swap additions.
+check "earlyoom is running" pgrep -x earlyoom
+check_contains "Xvnc has a frame-rate cap" "FrameRate" pgrep -a Xvnc
+check_contains "Xvnc keeps the session on disconnect" "noreset" pgrep -a Xvnc
+check_contains "Xvnc uses fast zlib compression" "ZlibLevel 1" pgrep -a Xvnc
+check_contains "Xvnc uses fast compress level" "CompressLevel 1" pgrep -a Xvnc
+check "noVNC page has low-latency parameters" grep -q 'quality=6' /usr/share/novnc/index.html
+check "system dashboard launcher exists" test -f /home/desktop/Desktop/system-dashboard.desktop
+check "host swap helper is executable" test -x /usr/local/bin/host-swap.sh
+
+# The swap file is created asynchronously; wait briefly for the status file.
+for _ in $(seq 1 30); do
+    [ -s /usr/share/novnc/swap-status.json ] && break
+    sleep 1
+done
+check "swap status JSON exists" test -s /usr/share/novnc/swap-status.json
+check "swap status JSON is valid" python3 -m json.tool /usr/share/novnc/swap-status.json
+check "swap file exists" test -f /var/swap/swapfile
+
+if swapon --show=NAME --noheadings 2>/dev/null | grep -q .; then
+    echo "PASS  active swap is available"
+    PASS=$((PASS + 1))
+else
+    echo "WARN  swap is not active; the container runtime may block swapon"
+fi
+
 echo
 echo "Passed: $PASS  Failed: $FAIL"
 [ "$FAIL" -eq 0 ]

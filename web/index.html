@@ -114,31 +114,33 @@
     <div class="eyebrow"><span id="statusDot" class="dot"></span><span id="statusText">Checking desktop…</span></div>
     <h1>Ubuntu<br><span>Cloud Desktop</span></h1>
     <p class="subtitle">
-      A lightweight XFCE workstation in your browser. Firefox, a full terminal,
-      file manager and a systemd-compatible service layer are ready.
+      A lightweight XFCE workstation in your browser. Low-latency TigerVNC,
+      Firefox, a full terminal and a systemd-compatible service layer are ready.
     </p>
     <div class="features">
       <span class="chip">Ubuntu 24.04 LTS</span>
       <span class="chip">XFCE</span>
       <span class="chip">Firefox</span>
+      <span class="chip">Low-latency VNC</span>
+      <span class="chip">6 GiB swap-ready</span>
       <span class="chip">systemd-compatible</span>
       <span class="chip">noVNC / TLS</span>
     </div>
     <div class="actions">
-      <a class="button" href="vnc.html?autoconnect=1&amp;resize=remote&amp;reconnect=1&amp;reconnect_delay=2000">
+      <a class="button" href="vnc.html?autoconnect=1&amp;resize=remote&amp;reconnect=1&amp;reconnect_delay=1000&amp;quality=6&amp;compression=2&amp;show_dot=1&amp;path=websockify">
         Open Desktop
         <span aria-hidden="true">→</span>
       </a>
       <div class="hint">
-        Use the VNC password configured for this deployment
-        (<code>VNC_PW</code>). The default is documented in the repository
-        README; change it before sharing the URL.
+        Tuned for low latency. Use the VNC password configured for this
+        deployment (<code>VNC_PW</code>). Change it before sharing the URL.
       </div>
     </div>
     <div class="status">
       <span><b>Display:</b> XFCE / X11</span>
       <span><b>Browser:</b> Firefox</span>
       <span><b>Transport:</b> WebSocket over HTTPS</span>
+      <span><b>Swap:</b> <span id="swapText">checking…</span></span>
       <span><b>Health:</b> <span id="healthText">checking…</span></span>
     </div>
   </main>
@@ -147,6 +149,9 @@
       const dot = document.getElementById("statusDot");
       const text = document.getElementById("statusText");
       const health = document.getElementById("healthText");
+      const swap = document.getElementById("swapText");
+      let swapTries = 0;
+
       async function check() {
         try {
           const response = await fetch("healthz", { cache: "no-store" });
@@ -162,7 +167,35 @@
         health.textContent = "retrying";
         setTimeout(check, 3000);
       }
+
+      async function checkSwap() {
+        try {
+          const response = await fetch("swap-status.json", { cache: "no-store" });
+          if (!response.ok) {
+            throw new Error("swap status not ready");
+          }
+          const status = await response.json();
+          const gib = (Number(status.size_mb || 0) / 1024).toFixed(1);
+          if (status.active) {
+            swap.textContent = `active (${gib} GiB)`;
+            swap.style.color = "var(--green)";
+            swap.title = (status.devices || []).join(", ");
+          } else {
+            swap.textContent = "file ready (not active)";
+            swap.style.color = "var(--amber)";
+            swap.title = status.error || status.note || "";
+          }
+        } catch (error) {
+          if (swapTries++ < 20) {
+            setTimeout(checkSwap, 3000);
+          } else {
+            swap.textContent = "not available";
+          }
+        }
+      }
+
       check();
+      checkSwap();
     })();
   </script>
 </body>

@@ -24,6 +24,13 @@ C:\Users\East-Sound\Desktop\ubuntu-systemd-desktop
    VNC_PORT=5901
    VNC_RESOLUTION=1440x900
    VNC_PW=كلمة-مرور-قوية-8-أحرف
+   VNC_FRAME_RATE=30
+   VNC_ZLIB_LEVEL=1
+   VNC_COMPRESS_LEVEL=1
+   VNC_QUALITY=8
+   SWAP_ENABLED=1
+   SWAP_SIZE_MB=6144
+   SWAP_SPARSE=1
    TZ=Africa/Cairo
    SYSTEMD_DETECT_VIRT=none
    HIDE_CONTAINER=0
@@ -35,7 +42,7 @@ C:\Users\East-Sound\Desktop\ubuntu-systemd-desktop
 ---------------
 VNC password: Ubuntu26
 Linux user: desktop
-Linux password: ubuntu
+Linux password: D3sk!2026
 
 غيّرها قبل أي استخدام عام.
 
@@ -44,6 +51,9 @@ Linux password: ubuntu
 - طبقة systemd توافقية وليست systemd الحقيقي.
 - لا تستخدم المشروع لتجاوز أنظمة حماية أو تراخيص.
 - البيانات داخل الحاوية مؤقتة؛ نزّل ملفاتك المهمة على جهازك.
+- السواب يُنشأ في /var/swap/swapfile. على CranL لا يمكن تفعيله
+  لأن الحاوية تمنع swapon؛ على VPS استخدم scripts/host-swap.sh.
+- شبكة CranL الخارجية معطلة بعطل Edge Server بتاريخ 23 أكتوبر 2026.
 - راجع:
   README.md
   docs/REPORT.md

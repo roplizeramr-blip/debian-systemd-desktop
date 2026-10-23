@@ -21,6 +21,14 @@ must listen on the configured port and bind `0.0.0.0`.  This image listens on
 | `VNC_PORT` | `5901` |
 | `VNC_RESOLUTION` | `1440x900` |
 | `VNC_PW` | a strong unique password (maximum 8 characters) |
+| `VNC_FRAME_RATE` | `30` |
+| `VNC_COMPARE_FB` | `2` |
+| `VNC_ZLIB_LEVEL` | `1` |
+| `VNC_COMPRESS_LEVEL` | `1` |
+| `VNC_QUALITY` | `8` |
+| `SWAP_ENABLED` | `1` |
+| `SWAP_SIZE_MB` | `6144` |
+| `SWAP_SPARSE` | `1` (CranL container disk) |
 | `TZ` | `Africa/Cairo` |
 | `SYSTEMD_DETECT_VIRT` | `none` |
 | `HIDE_CONTAINER` | `0` (or `1` only if you accept the caveat) |
@@ -75,6 +83,23 @@ app builds and passes its health check, then delete the old app.
 > slot.  Deleting through the API/MCP keeps the app for 7 days and it still
 > counts against the quota.  Use the dashboard when you are ready to remove the
 > old desktop permanently.
+
+## Swap and egress on CranL
+
+- **Swap cannot be activated.** CranL app containers do not grant
+  `CAP_SYS_ADMIN`; `swapon /var/swap/swapfile` returns `EPERM`. Moving the file
+  from `/swapfile` to `/var/swap` does not change this. The image creates the
+  file and reports the exact error at `/swap-status.json` and
+  `/var/log/swap.log`; it does not pretend the swap is active.
+- **Egress is currently blocked.** On 23 Oct 2026 the CranL status endpoint
+  reports `major_outage` for the Edge Server. App ingress (the browser URL and
+  `/healthz`) still works, but DNS resolves and outbound TCP/ICMP times out.
+  Firefox, `apt`, `curl` and GitHub from inside the desktop will not reach the
+  internet until CranL repairs the platform.
+- **For real swap plus internet, use a VPS.** See
+  [DEPLOY-VPS.md](DEPLOY-VPS.md). The host script creates the same 6 GiB file at
+  `/var/swap/swapfile` and activates it; the container should run with
+  `SWAP_ENABLED=0`.
 
 ## Health check
 
