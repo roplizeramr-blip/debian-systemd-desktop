@@ -160,12 +160,17 @@ required on the tailnet as a second layer.
 `start-tailscaled.sh` uses userspace networking by default:
 
 ```bash
-tailscaled --tun=userspace-networking --state=/var/lib/tailscale/tailscaled.state
+tailscaled --tun=userspace-networking \
+  --socks5-server=localhost:1055 --outbound-http-proxy-listen=localhost:1055 \
+  --state=/var/lib/tailscale/tailscaled.state
 ```
 
 This needs no `/dev/net/tun` and no `NET_ADMIN`; it is the right default for
-CranL and most container platforms. Userspace mode still accepts inbound
-tailnet connections, and `tailscale-serve.sh` configures the Tailscale link:
+CranL and most container platforms, and it follows Tailscale's documented
+userspace recipe (a localhost-only SOCKS5/HTTP proxy is exposed on `:1055` so
+processes in the desktop can reach other tailnet hosts for outbound traffic; it
+is never published publicly). Userspace mode still accepts inbound tailnet
+connections, and `tailscale-serve.sh` configures the Tailscale link:
 
 ```bash
 tailscale serve --bg --https=443 http://127.0.0.1:6080
