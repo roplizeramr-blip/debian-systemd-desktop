@@ -24,8 +24,6 @@ must listen on the configured port and bind `0.0.0.0`.  This image listens on
 | `VNC_FRAME_RATE` | `30` |
 | `VNC_COMPARE_FB` | `2` |
 | `VNC_ZLIB_LEVEL` | `1` |
-| `VNC_COMPRESS_LEVEL` | `1` |
-| `VNC_QUALITY` | `8` |
 | `SWAP_ENABLED` | `1` |
 | `SWAP_SIZE_MB` | `6144` |
 | `SWAP_SPARSE` | `1` (CranL container disk) |

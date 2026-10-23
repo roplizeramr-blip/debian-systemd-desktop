@@ -53,7 +53,6 @@ check "earlyoom is running" pgrep -x earlyoom
 check_contains "Xvnc has a frame-rate cap" "FrameRate" pgrep -a Xvnc
 check_contains "Xvnc keeps the session on disconnect" "noreset" pgrep -a Xvnc
 check_contains "Xvnc uses fast zlib compression" "ZlibLevel 1" pgrep -a Xvnc
-check_contains "Xvnc uses fast compress level" "CompressLevel 1" pgrep -a Xvnc
 check "noVNC page has low-latency parameters" grep -q 'quality=6' /usr/share/novnc/index.html
 check "system dashboard launcher exists" test -f /home/desktop/Desktop/system-dashboard.desktop
 check "host swap helper is executable" test -x /usr/local/bin/host-swap.sh

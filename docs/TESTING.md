@@ -22,7 +22,7 @@ Expected: every line `PASS`, final `Failed: 0` (the swap-active line may be
 ### Performance and swap checks
 
 ```bash
-pgrep -a Xvnc | grep -E 'FrameRate|ZlibLevel|CompressLevel|noreset'
+pgrep -a Xvnc | grep -E 'FrameRate|ZlibLevel|noreset'
 pgrep -a earlyoom
 cat /var/log/swap.log
 cat /usr/share/novnc/swap-status.json

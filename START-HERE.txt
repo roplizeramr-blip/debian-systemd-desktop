@@ -26,8 +26,6 @@ C:\Users\East-Sound\Desktop\ubuntu-systemd-desktop
    VNC_PW=كلمة-مرور-قوية-8-أحرف
    VNC_FRAME_RATE=30
    VNC_ZLIB_LEVEL=1
-   VNC_COMPRESS_LEVEL=1
-   VNC_QUALITY=8
    SWAP_ENABLED=1
    SWAP_SIZE_MB=6144
    SWAP_SPARSE=1

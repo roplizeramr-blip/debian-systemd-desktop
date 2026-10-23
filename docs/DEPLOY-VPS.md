@@ -53,8 +53,6 @@ docker run -d --name ubuntu-desktop \
   -e VNC_RESOLUTION='1440x900' \
   -e VNC_FRAME_RATE='30' \
   -e VNC_ZLIB_LEVEL='1' \
-  -e VNC_COMPRESS_LEVEL='1' \
-  -e VNC_QUALITY='8' \
   -e SWAP_ENABLED='0' \
   -e TZ='Africa/Cairo' \
   ubuntu-systemd-desktop
@@ -84,7 +82,8 @@ limit.
 
 - Keep the default `1440x900` and `VNC_FRAME_RATE=30` for a remote link.
 - On a slow link, lower the resolution to `1280x800` first.
-- On a fast LAN, `VNC_FRAME_RATE=60` and `VNC_QUALITY=9` feel more responsive.
+- On a fast LAN, raise `VNC_FRAME_RATE` to `60` and increase noVNC's
+  `quality`/`compression` query parameters in `web/index.html`.
 - `SWAP_SPARSE=0` on a VPS creates a fully allocated file; a sparse file can be
   rejected by the kernel with `Swapfile has holes`.
 - The desktop is CPU-rendered; a VPS with 2 vCPU is enough for XFCE + one

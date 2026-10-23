@@ -386,14 +386,14 @@ CranL يمكنه البناء مباشرة من مستودع GitHub باستخد
 تم ضبط TigerVNC على ملف منخفض الكمون بدل الإعداد الافتراضي:
 
 ```text
-FrameRate=30  CompareFB=2  ZlibLevel=1  CompressLevel=1
-Quality=8     ImprovedHextile  UseBlacklist  -noreset
+FrameRate=30  CompareFB=2  ZlibLevel=1  ImprovedHextile
+UseBlacklist  -noreset
 ```
 
 - `FrameRate=30` يقلل الفrames غير الضرورية ويبقي الحركة سلسة.
 - `CompareFB=2` يتجاهل المناطق غير المتغيرة من الشاشة.
-- `ZlibLevel=1` و`CompressLevel=1` يستخدمان أسرع ضغط بدل أصغر حجم.
-- `Quality=8` يحافظ على وضوح النص مع حجم معقول.
+- `ZlibLevel=1` يستخدم أسرع ضغط من جهة الخادم بدل أصغر حجم.
+- `ImprovedHextile` و`UseBlacklist` يحسنان استجابة سطح المكتب.
 - `-noreset` يبقي جلسة XFCE حية عند إغلاق المتصفح، فإعادة الاتصال
   لا تعيد تشغيل سطح المكتب من الصفر.
 
@@ -403,6 +403,9 @@ Quality=8     ImprovedHextile  UseBlacklist  -noreset
 quality=6&compression=2&resize=remote&autoconnect=1
 reconnect=1&reconnect_delay=1000&show_dot=1&path=websockify
 ```
+
+جودة JPEG والضغط في Tight يضبطهما noVNC من جهة المتصفح؛ خادم TigerVNC 1.13
+لا يقبل `-Quality` أو `-CompressLevel`، لذلك لا تُمرَّر له.
 
 كما تم تعطيل compositor وظلال النوافذ وحركات XFCE، وتثبيت ثيم
 `Adwaita-dark` مسطح، وتعطيل blanking/DPMS، وضبط Firefox على

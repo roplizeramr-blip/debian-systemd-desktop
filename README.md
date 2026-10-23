@@ -97,8 +97,6 @@ can. The default Linux password is `D3sk!2026`; change it after first login.
 | `VNC_FRAME_RATE` | `30` | Maximum updates per second per viewer. 30 is smooth and light; 60 is more responsive but uses more CPU/bandwidth. |
 | `VNC_COMPARE_FB` | `2` | TigerVNC framebuffer comparison mode: `0` off, `1` always, `2` auto. |
 | `VNC_ZLIB_LEVEL` | `1` | zlib compression level. `1` is the fastest; `9` is smallest. |
-| `VNC_COMPRESS_LEVEL` | `1` | Tight encoding compression level. `1` is the fastest. |
-| `VNC_QUALITY` | `8` | Tight/JPEG quality (`0`–`9`). |
 | `SWAP_ENABLED` | `1` | Create `/var/swap/swapfile` and try to activate it. |
 | `SWAP_SIZE_MB` | `6144` | Swap file size in MiB (6 GiB). |
 | `SWAP_DIR` | `/var/swap` | Writable swap directory. |
@@ -117,10 +115,12 @@ can. The default Linux password is `D3sk!2026`; change it after first login.
 The desktop is tuned for a latency-bound browser session, not for a LAN with a
 native VNC client:
 
-- **Xvnc:** 30 fps cap, `CompareFB=2`, `ZlibLevel=1`, `CompressLevel=1`,
-  `Quality=8`, improved hextile, and `-noreset` so a browser reconnect returns
-  to the same XFCE session instead of restarting it.
-- **noVNC:** `quality=6`, `compression=2`, remote resize, auto-reconnect and a
+- **Xvnc:** 30 fps cap, `CompareFB=2`, `ZlibLevel=1`, improved hextile and
+  `-noreset` so a browser reconnect returns to the same XFCE session instead
+  of restarting it.
+- **noVNC:** `quality=6`, `compression=2` (Tight/JPEG settings are viewer-side;
+  TigerVNC 1.13's server does not accept `-Quality` or `-CompressLevel`),
+  remote resize, auto-reconnect and a
   short reconnect delay.
 - **XFCE:** compositor, shadows, window animations, smooth scrolling, blanking
   and DPMS are disabled; the GTK theme is flat and dark.

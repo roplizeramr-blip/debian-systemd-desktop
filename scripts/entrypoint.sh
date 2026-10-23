@@ -20,8 +20,6 @@ export SWAP_SPARSE="${SWAP_SPARSE:-0}"
 export VNC_FRAME_RATE="${VNC_FRAME_RATE:-30}"
 export VNC_COMPARE_FB="${VNC_COMPARE_FB:-2}"
 export VNC_ZLIB_LEVEL="${VNC_ZLIB_LEVEL:-1}"
-export VNC_COMPRESS_LEVEL="${VNC_COMPRESS_LEVEL:-1}"
-export VNC_QUALITY="${VNC_QUALITY:-8}"
 
 if ! locale -a 2>/dev/null | grep -qi '^en_US\.utf8$'; then
     export LANG="C.UTF-8"
@@ -61,7 +59,7 @@ for setting in \
     sysctl -w "$setting" >/dev/null 2>&1 || true
 done
 
-echo "[desktop] VNC ${VNC_RESOLUTION} on ${VNC_PORT}; frame rate ${VNC_FRAME_RATE}; zlib ${VNC_ZLIB_LEVEL}; compress ${VNC_COMPRESS_LEVEL}; quality ${VNC_QUALITY}"
+echo "[desktop] VNC ${VNC_RESOLUTION} on ${VNC_PORT}; frame rate ${VNC_FRAME_RATE}; zlib ${VNC_ZLIB_LEVEL}"
 echo "[desktop] swap ${SWAP_SIZE_MB} MiB at ${SWAP_FILE} (sparse=${SWAP_SPARSE}, enabled=${SWAP_ENABLED})"
 
 # A stable machine-id and boot timestamp make hostnamectl/journalctl useful.

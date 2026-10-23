@@ -8,8 +8,6 @@ export VNC_RESOLUTION="${VNC_RESOLUTION:-1440x900}"
 export VNC_FRAME_RATE="${VNC_FRAME_RATE:-30}"
 export VNC_COMPARE_FB="${VNC_COMPARE_FB:-2}"
 export VNC_ZLIB_LEVEL="${VNC_ZLIB_LEVEL:-1}"
-export VNC_COMPRESS_LEVEL="${VNC_COMPRESS_LEVEL:-1}"
-export VNC_QUALITY="${VNC_QUALITY:-8}"
 export VNC_DESKTOP_NAME="${VNC_DESKTOP_NAME:-Ubuntu Cloud Desktop}"
 
 mkdir -p "$HOME/.vnc"
@@ -18,13 +16,14 @@ if [ ! -s "$HOME/.vnc/passwd" ]; then
     chmod 0600 "$HOME/.vnc/passwd"
 fi
 
-# Low-latency Tight encoding profile:
+# Low-latency Tight encoding profile for the Xvnc server (TigerVNC 1.13):
 #   FrameRate 30        cap redundant updates, smooth for noVNC
 #   CompareFB 2         skip unchanged framebuffer regions
-#   Zlib/Compress 1     fastest compression instead of smallest frames
-#   Quality 8           good visual quality without huge JPEG frames
+#   ZlibLevel 1         fastest server-side compression
 #   ImprovedHextile     efficient text/desktop updates
 #   UseBlacklist        avoid slow encodings for struggling clients
+# JPEG quality and compression are negotiated by noVNC in web/index.html;
+# Xvnc 1.13 does not accept -Quality or -CompressLevel, so they are omitted.
 args=(
     ":1"
     -geometry "$VNC_RESOLUTION"
@@ -43,8 +42,6 @@ args=(
     -FrameRate "$VNC_FRAME_RATE"
     -CompareFB "$VNC_COMPARE_FB"
     -ZlibLevel "$VNC_ZLIB_LEVEL"
-    -CompressLevel "$VNC_COMPRESS_LEVEL"
-    -Quality "$VNC_QUALITY"
     -ImprovedHextile
     -UseBlacklist
 )
@@ -62,5 +59,5 @@ if [ "${VNC_BIND_ALL:-0}" != "1" ]; then
     args+=(-localhost)
 fi
 
-echo "Starting Xvnc: ${VNC_RESOLUTION}, port ${VNC_PORT}, frame rate ${VNC_FRAME_RATE}, zlib ${VNC_ZLIB_LEVEL}, compress ${VNC_COMPRESS_LEVEL}, quality ${VNC_QUALITY}."
+echo "Starting Xvnc: ${VNC_RESOLUTION}, port ${VNC_PORT}, frame rate ${VNC_FRAME_RATE}, zlib ${VNC_ZLIB_LEVEL}."
 exec Xvnc "${args[@]}"
