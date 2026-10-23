@@ -19,8 +19,13 @@ export SWAP_SPARSE="${SWAP_SPARSE:-1}"
 export TS_HOSTNAME="${TS_HOSTNAME:-ubuntu-desktop}"
 export TS_STATE_DIR="${TS_STATE_DIR:-/var/lib/tailscale}"
 export TS_TUN="${TS_TUN:-userspace}"
-export TS_SERVE_HTTP_PORT="${TS_SERVE_HTTP_PORT:-3000}"
-export TS_SERVE_HTTPS_PORT="${TS_SERVE_HTTPS_PORT:-0}"
+# VNC is published on the Tailscale link (MagicDNS name over HTTPS on :443) so
+# "Open VNC" uses https://<host>.<tailnet>.ts.net/ and no port on the raw
+# Tailscale IP is consumed.  The raw TCP rule is opt-in only; leave the IP and
+# its ports free for other apps you host on the same node.
+export TS_SERVE_HTTPS_PORT="${TS_SERVE_HTTPS_PORT:-443}"
+export TS_SERVE_HTTP_PORT="${TS_SERVE_HTTP_PORT:-0}"
+export TS_SERVE_FALLBACK_TCP="${TS_SERVE_FALLBACK_TCP:-0}"
 export TS_SERVE_INTERVAL="${TS_SERVE_INTERVAL:-10}"
 
 if ! locale -a 2>/dev/null | grep -qi '^en_US\.utf8$'; then
@@ -66,7 +71,7 @@ for setting in \
 done
 
 echo "[desktop] KasmVNC ${VNC_RESOLUTION} on 127.0.0.1:${KASM_PORT} (display :${KASM_DISPLAY}, auth=${VNC_AUTH})"
-echo "[desktop] public control page on :${CONTROL_PORT}; Tailscale Serve TCP :${TS_SERVE_HTTP_PORT} -> 127.0.0.1:${KASM_PORT}"
+echo "[desktop] public control page on :${CONTROL_PORT}; Tailscale Serve HTTPS :${TS_SERVE_HTTPS_PORT} -> 127.0.0.1:${KASM_PORT} (raw TCP :${TS_SERVE_HTTP_PORT})"
 echo "[desktop] swap enabled=${SWAP_ENABLED} (${SWAP_SIZE_MB} MiB at ${SWAP_FILE})"
 
 # A stable machine-id and boot timestamp make hostnamectl/journalctl useful.

@@ -27,8 +27,8 @@ KASM_PORT = int(os.environ.get("KASM_PORT", "6080"))
 CONTROL_PORT = int(os.environ.get("CONTROL_PORT") or os.environ.get("PORT") or "3000")
 TS_SOCKET = os.environ.get("TS_SOCKET", "").strip()
 TS_HOSTNAME = os.environ.get("TS_HOSTNAME", "ubuntu-desktop").strip() or "ubuntu-desktop"
-TS_SERVE_HTTP_PORT = int(os.environ.get("TS_SERVE_HTTP_PORT", "3000"))
-TS_SERVE_HTTPS_PORT = int(os.environ.get("TS_SERVE_HTTPS_PORT", "0"))
+TS_SERVE_HTTPS_PORT = int(os.environ.get("TS_SERVE_HTTPS_PORT", "443"))
+TS_SERVE_HTTP_PORT = int(os.environ.get("TS_SERVE_HTTP_PORT", "0"))
 SERVE_HTTP_FLAG = Path("/run/desktop-tailscale-http.ok")
 SERVE_HTTPS_FLAG = Path("/run/desktop-tailscale-https.ok")
 LOGIN_LOG = Path("/tmp/tailscale-login.log")
@@ -133,12 +133,13 @@ def _status_details() -> dict[str, object]:
         http_url = f"http://{ipv4}:{TS_SERVE_HTTP_PORT}/"
     https_url = None
     if https_ready and dns_name and TS_SERVE_HTTPS_PORT:
-        https_url = f"https://{dns_name}:{TS_SERVE_HTTPS_PORT}/"
+        suffix = "" if TS_SERVE_HTTPS_PORT == 443 else f":{TS_SERVE_HTTPS_PORT}"
+        https_url = f"https://{dns_name}{suffix}/"
 
-    # Raw TCP is deliberately the primary path: it keeps KasmVNC's WebSocket
-    # traffic end-to-end and works with a Tailscale IP even when MagicDNS is
-    # disabled.  HTTPS is shown as a bonus when Tailscale provisioned a cert.
-    open_url = http_url or https_url
+    # The Tailscale link (MagicDNS name over HTTPS) is the primary path so the
+    # raw Tailscale IP and its ports stay free for other apps on the same node.
+    # The IP-based URL is only a fallback when the raw TCP rule is enabled.
+    open_url = https_url or http_url
     ready = bool(online and desktop_ready() and open_url)
 
     return {

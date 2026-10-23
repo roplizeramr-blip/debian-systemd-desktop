@@ -61,8 +61,11 @@ docker run -d --name ubuntu-desktop \
 ```
 
 Open `http://<vps-ip>:3000` to link Tailscale if you did not provide an auth
-key. After the node is online, use **Open VNC** from the control page, or open
-`http://<tailscale-ip>:3000/` directly from a device on the tailnet.
+key. After the node is online, use **Open VNC** from the control page: it opens
+the Tailscale MagicDNS link (`https://<host>.<tailnet>.ts.net/`). For that to
+work, enable MagicDNS and HTTPS certificates for the tailnet. Alternatively set
+`TS_SERVE_HTTP_PORT=3000` to use `http://<tailscale-ip>:3000/` from a device on
+the tailnet.
 
 If you expose port `3000` to the internet, put Caddy/Nginx/Traefik with TLS in
 front of it. Never expose KasmVNC port `6080`; it is bound to loopback.

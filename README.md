@@ -35,12 +35,13 @@ Linux system, while Supervisor remains the real process manager.
 - KasmVNC `1.5.0` from the official release, checksum-pinned and loopback-only.
 - Tailscale in userspace networking mode by default (no `/dev/net/tun` or
   `NET_ADMIN` required); `TS_TUN=kernel` is opt-in.
-- Persistent Tailscale Serve raw-TCP rule: tailnet `:3000` → `127.0.0.1:6080`.
-  Raw TCP preserves KasmVNC's WebSocket traffic. An optional TLS-terminated
-  rule (`TS_SERVE_HTTPS_PORT=3443`) can be enabled when Tailscale can provision
-  a certificate.
-- Public control page with **Open VNC**, Tailscale status/IP, **Connect
-  Tailscale**, and a login-link fallback.
+- Tailscale Serve publishes KasmVNC on the **MagicDNS link** as
+  `https://<host>.<tailnet>.ts.net/` (an HTTPS reverse proxy with WebSocket
+  support), so **Open VNC** never uses the raw Tailscale IP and no port on that
+  IP is taken. A raw-TCP rule (`TS_SERVE_HTTP_PORT`, off by default) remains as
+  a fallback.
+- Public control page with **Open VNC**, the Tailscale link, connection status,
+  **Connect Tailscale**, and a login-link fallback.
 - Optional `TS_AUTHKEY` auto-join; otherwise the login link is opened in a new
   tab from the public page and approved by the user.
 - Ubuntu package upgrade at build time; KasmVNC checksum verification.
@@ -65,7 +66,7 @@ CranL public HTTPS
         │
         │  (login link, approval in a new tab)
         ▼
-  tailscaled ── Serve raw TCP :3000 ──► 127.0.0.1:6080 (KasmVNC)
+  tailscaled ── Serve HTTPS (MagicDNS link) ──► 127.0.0.1:6080 (KasmVNC)
                                               │
                                               ▼ DISPLAY :1
                                     XFCE + Firefox + apps
@@ -86,8 +87,8 @@ Ports:
 |---|---|---|
 | `3000` | `0.0.0.0` | Public control page; CranL health path `/healthz` |
 | `6080` | `127.0.0.1` | KasmVNC HTTP/WebSocket |
-| `3000` (tailnet) | Tailscale Serve | Forwards to `127.0.0.1:6080` |
-| `3443` (tailnet, opt-in) | Tailscale Serve | TLS-terminated TCP to KasmVNC |
+| `443` (tailnet, via Serve) | Tailscale Serve | HTTPS reverse proxy to `127.0.0.1:6080` on the MagicDNS link |
+| `3000` (tailnet, opt-in) | Tailscale Serve | Raw-TCP fallback; disabled by default to keep the IP free |
 
 ## Quick start (Docker)
 
@@ -115,10 +116,11 @@ docker run -d --name ubuntu-systemd-desktop \
 1. Open the public `*.cranl.net` URL (or `http://localhost:3000`).
 2. Click **Connect Tailscale**. A login link opens in a new tab.
 3. Approve the device in Tailscale. The page detects the connection and shows
-   the Tailscale IPv4 address.
-4. Click **Open VNC**, then sign in with user `desktop` and `VNC_PW`.
+   the Tailscale link (`<host>.<tailnet>.ts.net`).
+4. Click **Open VNC**, then sign in with user `desktop` and `VNC_PW`. The button
+   points at `https://<host>.<tailnet>.ts.net/`.
 5. To use a phone or another computer, install Tailscale there, sign into the
-   same tailnet, and open the same `http://100.x.y.z:3000/` address.
+   same tailnet, and open the same Tailscale link.
 
 The public page is the only CranL-exposed service. The VNC password is still
 required on the tailnet as a second layer.
@@ -139,8 +141,9 @@ required on the tailnet as a second layer.
 | `TS_AUTHKEY` | *(unset)* | Optional Tailscale auth key for automatic join. Never commit it. |
 | `TS_TUN` | `userspace` | `userspace` works without `/dev/net/tun`/NET_ADMIN. Use `kernel` only on a host with a usable TUN device. |
 | `TS_STATE_DIR` | `/var/lib/tailscale` | Tailscale state directory. Ephemeral unless you mount a volume. |
-| `TS_SERVE_HTTP_PORT` | `3000` | Tailnet-side raw TCP port forwarded to KasmVNC. |
-| `TS_SERVE_HTTPS_PORT` | `0` | Optional TLS-terminated tailnet port; set `3443` to enable it. |
+| `TS_SERVE_HTTPS_PORT` | `443` | Tailnet HTTPS port for the MagicDNS link. This is what **Open VNC** uses. |
+| `TS_SERVE_HTTP_PORT` | `0` | Raw-TCP fallback port on the Tailscale IP. `0` keeps the IP and its ports free for other apps. |
+| `TS_SERVE_FALLBACK_TCP` | `0` | If `1`, enable the raw-TCP rule automatically when HTTPS cannot be served. |
 | `TS_SERVE_INTERVAL` | `10` | Seconds between Serve status checks. |
 | `SWAP_ENABLED` | `0` | If `1`, create and try to activate a swap file. |
 | `SWAP_SIZE_MB` | `6144` | Opt-in swap file size. |
@@ -162,23 +165,27 @@ tailscaled --tun=userspace-networking --state=/var/lib/tailscale/tailscaled.stat
 
 This needs no `/dev/net/tun` and no `NET_ADMIN`; it is the right default for
 CranL and most container platforms. Userspace mode still accepts inbound
-tailnet connections, and `tailscale-serve.sh` configures:
+tailnet connections, and `tailscale-serve.sh` configures the Tailscale link:
+
+```bash
+tailscale serve --bg --https=443 http://127.0.0.1:6080
+```
+
+The control server waits for the Serve flag before enabling **Open VNC**, which
+then points at `https://<magicdns-name>/`. Because the desktop is published on
+the MagicDNS name over HTTPS, the raw Tailscale IP and its ports stay free for
+other apps on the same node. Serving HTTPS on the `ts.net` name requires
+**MagicDNS** and **HTTPS certificates** to be enabled for the tailnet in the
+Tailscale admin console (DNS page); without them the rule fails and the page
+keeps waiting.
+
+A raw-TCP fallback is available but off by default. Set
+`TS_SERVE_HTTP_PORT=3000` (and optionally `TS_SERVE_FALLBACK_TCP=1` to enable it
+automatically after HTTPS fails) to forward a port on the Tailscale IP:
 
 ```bash
 tailscale serve --bg --tcp=3000 tcp://127.0.0.1:6080
 ```
-
-The control server waits for the Serve flag before enabling **Open VNC**. The
-primary URL is the raw-TCP HTTP address (`http://<tailscale-ip>:3000/`) because
-it works with an IP even when MagicDNS is disabled and keeps KasmVNC's
-WebSocket end-to-end. If you explicitly set `TS_SERVE_HTTPS_PORT=3443` and
-Tailscale can provision a certificate, the monitor also tries:
-
-```bash
-tailscale serve --bg --tls-terminated-tcp=3443 tcp://127.0.0.1:6080
-```
-
-and the page shows an optional `https://<magicdns-name>:3443/` link.
 
 **Login state is ephemeral on CranL.** A redeploy creates a fresh container and
 Tailscale node state, so you will normally need to approve a new login link. To
@@ -404,9 +411,10 @@ MIT. See [LICENSE](LICENSE).
    إلى لينكس. لا تضع أي أسرار في المستودع.
 3. افتح رابط التطبيق، اضغط **Connect Tailscale**، ووافق على رابط الدخول في
    التبويب الجديد.
-4. بعد ظهور عنوان Tailscale، اضغط **Open VNC** ثم سجّل الدخول باسم `desktop`
-   وكلمة مرور `VNC_PW`.
+4. بعد ظهور رابط Tailscale (اسم MagicDNS)، اضغط **Open VNC** ثم سجّل الدخول
+   باسم `desktop` وكلمة مرور `VNC_PW`. للعمل يجب تفعيل MagicDNS وشهادات HTTPS
+   لشبكتك من لوحة تحكم Tailscale.
 5. لاستخدامه من الهاتف أو جهاز آخر، ثبّت Tailscale هناك وسجّل الدخول إلى نفس
-   الشبكة، ثم افتح عنوان `http://100.x.y.z:3000/`.
+   الشبكة، ثم افتح نفس رابط Tailscale. عنوان الـIP ومنافذه تبقى حرة لتطبيقاتك.
 
 طبقة systemd هنا **توافقية** وليست systemd الحقيقي؛ راجع قسم القيود أعلاه.

@@ -29,10 +29,10 @@ C:\Users\East-Sound\Desktop\ubuntu-systemd-desktop
    # اختياري: SWAP_ENABLED=0
 4. افتح رابط التطبيق، ثم اضغط Connect Tailscale.
 5. وافق على رابط الدخول في التبويب الجديد.
-6. بعد ظهور عنوان Tailscale اضغط Open VNC، وسجّل الدخول باسم desktop
-   وكلمة مرور VNC_PW.
+6. بعد ظهور رابط Tailscale (اسم MagicDNS) اضغط Open VNC، وسجّل الدخول باسم
+   desktop وكلمة مرور VNC_PW.
 7. لاستخدامه من الهاتف: ثبّت Tailscale على الهاتف، سجّل الدخول إلى نفس
-   الشبكة، ثم افتح http://100.x.y.z:3000/
+   الشبكة، ثم افتح نفس رابط Tailscale (يتطلب تفعيل MagicDNS وشهادات HTTPS).
 
 بيانات الدخول
 -------------

@@ -410,12 +410,12 @@
         <small id="ts-host">Private network</small>
       </article>
       <article class="card">
-        <label>Private address</label>
+        <label>Tailscale link</label>
         <div class="ip-row">
-          <strong class="mono" id="ts-ip">—</strong>
-          <button class="copy" id="copy-ip" type="button" hidden>Copy</button>
+          <strong class="mono" id="ts-link">—</strong>
+          <button class="copy" id="copy-link" type="button" hidden>Copy</button>
         </div>
-        <small>Reachable only on your tailnet</small>
+        <small>Open VNC uses this private HTTPS link</small>
       </article>
     </section>
 
@@ -427,8 +427,8 @@
       </div>
       <div class="step">
         <div class="num">02</div>
-        <h3>Use your private address</h3>
-        <p>Open the Tailscale IP from any device signed into the same tailnet. No public VNC port is used.</p>
+        <h3>Use your Tailscale link</h3>
+        <p>Open the private Tailscale HTTPS link from any device on the same tailnet. The raw IP and its ports stay free for your own apps.</p>
       </div>
       <div class="step">
         <div class="num">03</div>
@@ -462,8 +462,8 @@
       const desktopState = el("desktop-state");
       const tsState = el("ts-state");
       const tsHost = el("ts-host");
-      const tsIp = el("ts-ip");
-      const copyIp = el("copy-ip");
+      const tsLink = el("ts-link");
+      const copyLink = el("copy-link");
       const loginFallback = el("login-fallback");
       const loginLink = el("login-link");
       const footerTime = el("footer-time");
@@ -534,8 +534,8 @@
         desktopState.textContent = desktop.running ? "Running" : "Starting";
         tsState.textContent = stateLabel(tailscale.backend_state);
         tsHost.textContent = tailscale.hostname || "Private network";
-        tsIp.textContent = tailscale.ipv4 || "—";
-        copyIp.hidden = !tailscale.ipv4;
+        tsLink.textContent = tailscale.dns_name || "—";
+        copyLink.hidden = !tailscale.dns_name;
         footerTime.textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
         setPill(status.ready ? "Private link ready" : "Setup required", status.ready ? "ready" : "warn");
 
@@ -574,7 +574,7 @@
           return;
         }
         if (!tailscale.serve_http && !tailscale.serve_https) {
-          showNotice("Tailscale is connected. The private TCP forwarding rule is still being applied…", "");
+          showNotice("Tailscale is connected. The private HTTPS link is still being applied…", "");
           return;
         }
         showNotice("The tunnel is ready but the desktop health check is still starting.", "");
@@ -662,15 +662,15 @@
       connectBtn.addEventListener("click", connect);
       refreshBtn.addEventListener("click", refresh);
 
-      copyIp.addEventListener("click", async () => {
-        const value = tsIp.textContent.trim();
+      copyLink.addEventListener("click", async () => {
+        const value = tsLink.textContent.trim();
         if (!value || value === "—") return;
         try {
           await navigator.clipboard.writeText(value);
-          copyIp.textContent = "Copied";
-          window.setTimeout(() => { copyIp.textContent = "Copy"; }, 1400);
+          copyLink.textContent = "Copied";
+          window.setTimeout(() => { copyLink.textContent = "Copy"; }, 1400);
         } catch (error) {
-          copyIp.textContent = "Select";
+          copyLink.textContent = "Select";
         }
       });
 

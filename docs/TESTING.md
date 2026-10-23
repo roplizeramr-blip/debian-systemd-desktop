@@ -128,8 +128,10 @@ gdbus introspect --system --dest org.freedesktop.systemd1 \
 7. Resize the browser; KasmVNC should resize the desktop dynamically.
 8. Close the browser tab, reopen the Tailscale URL and reconnect. The XFCE
    session should still be there (KasmVNC keeps the display alive).
-9. If Tailscale HTTPS was provisioned, the optional `:3443` link should also
-   open the same KasmVNC page. HTTP over WireGuard is the fallback.
+9. **Open VNC** should point at the Tailscale MagicDNS link
+   (`https://<host>.<tailnet>.ts.net/`), not at a raw-IP port. Confirm the raw
+   Tailscale IP stays free (no serve rule bound to it) when
+   `TS_SERVE_HTTP_PORT=0`.
 
 ## 7. Health endpoint
 

@@ -29,8 +29,9 @@ ENV LANG=en_US.UTF-8 \
     TS_HOSTNAME=ubuntu-desktop \
     TS_STATE_DIR=/var/lib/tailscale \
     TS_TUN=userspace \
-    TS_SERVE_HTTP_PORT=3000 \
-    TS_SERVE_HTTPS_PORT=0 \
+    TS_SERVE_HTTPS_PORT=443 \
+    TS_SERVE_HTTP_PORT=0 \
+    TS_SERVE_FALLBACK_TCP=0 \
     TS_SERVE_INTERVAL=10 \
     DEBIAN_FRONTEND=noninteractive
 
