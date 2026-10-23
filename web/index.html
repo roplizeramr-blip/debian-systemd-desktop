@@ -410,12 +410,12 @@
         <small id="ts-host">Private network</small>
       </article>
       <article class="card">
-        <label>Tailscale link</label>
+        <label id="ts-link-label">Tailscale link</label>
         <div class="ip-row">
           <strong class="mono" id="ts-link">—</strong>
           <button class="copy" id="copy-link" type="button" hidden>Copy</button>
         </div>
-        <small>Open VNC uses this private HTTPS link</small>
+        <small id="ts-link-note">Open VNC uses this private HTTPS link</small>
       </article>
     </section>
 
@@ -428,7 +428,7 @@
       <div class="step">
         <div class="num">02</div>
         <h3>Use your Tailscale link</h3>
-        <p>Open the private Tailscale HTTPS link from any device on the same tailnet. The raw IP and its ports stay free for your own apps.</p>
+        <p>Open the Tailscale HTTPS link. With Serve it is private to your tailnet; with Funnel (TS_FUNNEL=1) anyone can reach the login page. The raw IP and its ports stay free for your own apps.</p>
       </div>
       <div class="step">
         <div class="num">03</div>
@@ -463,6 +463,8 @@
       const tsState = el("ts-state");
       const tsHost = el("ts-host");
       const tsLink = el("ts-link");
+      const tsLinkLabel = el("ts-link-label");
+      const tsLinkNote = el("ts-link-note");
       const copyLink = el("copy-link");
       const loginFallback = el("login-fallback");
       const loginLink = el("login-link");
@@ -530,14 +532,22 @@
         const desktop = status.desktop || {};
         const tailscale = status.tailscale || {};
         const urls = status.urls || {};
+        const funnel = !!tailscale.funnel;
 
         desktopState.textContent = desktop.running ? "Running" : "Starting";
         tsState.textContent = stateLabel(tailscale.backend_state);
         tsHost.textContent = tailscale.hostname || "Private network";
         tsLink.textContent = tailscale.dns_name || "—";
+        tsLinkLabel.textContent = funnel ? "Public link (Funnel)" : "Tailscale link";
+        tsLinkNote.textContent = funnel
+          ? "Open VNC uses this public HTTPS link"
+          : "Open VNC uses this private HTTPS link";
         copyLink.hidden = !tailscale.dns_name;
         footerTime.textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-        setPill(status.ready ? "Private link ready" : "Setup required", status.ready ? "ready" : "warn");
+        setPill(
+          status.ready ? (funnel ? "Public link ready" : "Private link ready") : "Setup required",
+          status.ready ? "ready" : "warn"
+        );
 
         if (tailscale.login_url && !tailscale.online) {
           setLoginFallback(tailscale.login_url);
@@ -549,7 +559,7 @@
           setOpen(urls.open);
           connectBtn.hidden = true;
           showNotice("", "");
-          setPill("Private link ready", "ready");
+          setPill(funnel ? "Public link ready" : "Private link ready", "ready");
           return;
         }
 

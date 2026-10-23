@@ -58,6 +58,7 @@ Optional:
 | `TS_SERVE_HTTPS_PORT` | `443` | Tailnet HTTPS port for the MagicDNS link used by **Open VNC**. |
 | `TS_SERVE_HTTP_PORT` | `0` | Raw-TCP fallback port on the Tailscale IP; `0` keeps the IP free. |
 | `TS_SERVE_FALLBACK_TCP` | `0` | If `1`, enable the raw-TCP rule automatically when HTTPS fails. |
+| `TS_FUNNEL` | `0` | If `1`, publish the desktop to the public internet with `tailscale funnel` instead of the tailnet-only `serve`. |
 | `SWAP_ENABLED` | `0` | Leave off on CranL; enable on a VPS if needed. |
 | `HIDE_CONTAINER` | `0` | Compatibility option only; not a security boundary. |
 

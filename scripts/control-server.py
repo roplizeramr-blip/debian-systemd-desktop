@@ -29,6 +29,7 @@ TS_SOCKET = os.environ.get("TS_SOCKET", "").strip()
 TS_HOSTNAME = os.environ.get("TS_HOSTNAME", "ubuntu-desktop").strip() or "ubuntu-desktop"
 TS_SERVE_HTTPS_PORT = int(os.environ.get("TS_SERVE_HTTPS_PORT", "443"))
 TS_SERVE_HTTP_PORT = int(os.environ.get("TS_SERVE_HTTP_PORT", "0"))
+TS_FUNNEL = os.environ.get("TS_FUNNEL", "0") != "0"
 SERVE_HTTP_FLAG = Path("/run/desktop-tailscale-http.ok")
 SERVE_HTTPS_FLAG = Path("/run/desktop-tailscale-https.ok")
 LOGIN_LOG = Path("/tmp/tailscale-login.log")
@@ -162,6 +163,7 @@ def _status_details() -> dict[str, object]:
             "login_url": None if online else login_url,
             "serve_http": http_ready,
             "serve_https": https_ready,
+            "funnel": TS_FUNNEL,
             "http_port": TS_SERVE_HTTP_PORT,
             "https_port": TS_SERVE_HTTPS_PORT,
         },

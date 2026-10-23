@@ -144,6 +144,7 @@ required on the tailnet as a second layer.
 | `TS_SERVE_HTTPS_PORT` | `443` | Tailnet HTTPS port for the MagicDNS link. This is what **Open VNC** uses. |
 | `TS_SERVE_HTTP_PORT` | `0` | Raw-TCP fallback port on the Tailscale IP. `0` keeps the IP and its ports free for other apps. |
 | `TS_SERVE_FALLBACK_TCP` | `0` | If `1`, enable the raw-TCP rule automatically when HTTPS cannot be served. |
+| `TS_FUNNEL` | `0` | If `1`, publish the desktop to the **public internet** with `tailscale funnel` instead of the tailnet-only `serve`. The KasmVNC password is still required. |
 | `TS_SERVE_INTERVAL` | `10` | Seconds between Serve status checks. |
 | `SWAP_ENABLED` | `0` | If `1`, create and try to activate a swap file. |
 | `SWAP_SIZE_MB` | `6144` | Opt-in swap file size. |
