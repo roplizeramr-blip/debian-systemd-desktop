@@ -1,17 +1,27 @@
 #!/usr/bin/env python3
-"""Small public control plane for the KasmVNC + Tailscale desktop.
+"""Public entry point for the KasmVNC + Tailscale desktop.
 
-The public CranL port only serves this page, its JSON status API, and a
-health probe.  The desktop itself listens on loopback and is reachable only
-through Tailscale Serve.  Keeping this process deliberately small avoids a
-second web framework and keeps the image fast.
+The public CranL port serves one of two things:
+
+  * the lightweight control page, its JSON status API and a health probe
+    (default), or
+  * the KasmVNC desktop itself, with the control page moved to /status, when
+    PUBLIC_DESKTOP=1.
+
+KasmVNC always listens on loopback only.  With PUBLIC_DESKTOP=1 this process
+reverse-proxies HTTP and WebSocket traffic to it, so the desktop can be reached
+on the public HTTPS URL of the app without adding a web server or a second
+container.  Keeping this process deliberately small avoids a second web
+framework and keeps the image fast.
 """
 
 from __future__ import annotations
 
+import http.client
 import json
 import os
 import re
+import select
 import shutil
 import socket
 import subprocess
@@ -25,6 +35,8 @@ WEB_INDEX = Path(os.environ.get("DESKTOP_WEB_INDEX", str(APP_ROOT / "web" / "ind
 KASM_HOST = os.environ.get("KASM_HOST", "127.0.0.1")
 KASM_PORT = int(os.environ.get("KASM_PORT", "6080"))
 CONTROL_PORT = int(os.environ.get("CONTROL_PORT") or os.environ.get("PORT") or "3000")
+# When set, "/" is the desktop and the control page lives on /status.
+PUBLIC_DESKTOP = os.environ.get("PUBLIC_DESKTOP", "0") != "0"
 TS_SOCKET = os.environ.get("TS_SOCKET", "").strip()
 TS_HOSTNAME = os.environ.get("TS_HOSTNAME", "ubuntu-desktop").strip() or "ubuntu-desktop"
 TS_SERVE_HTTPS_PORT = int(os.environ.get("TS_SERVE_HTTPS_PORT", "443"))
@@ -39,6 +51,21 @@ TAILSCALE = shutil.which("tailscale") or "/usr/bin/tailscale"
 LOGIN_LOCK = threading.Lock()
 LOGIN_PROC: subprocess.Popen[str] | None = None
 LOGIN_URL: str | None = None
+
+# Hop-by-hop headers are connection specific and must not be forwarded.
+HOP_BY_HOP = {
+    "connection",
+    "keep-alive",
+    "proxy-authenticate",
+    "proxy-authorization",
+    "te",
+    "trailer",
+    "trailers",
+    "transfer-encoding",
+    "upgrade",
+    "content-length",
+}
+MAX_REQUEST_BODY = 8 * 1024 * 1024
 
 
 def _json_bytes(value: object) -> bytes:
@@ -100,7 +127,7 @@ def _login_url_from_log() -> str | None:
     return match.group(0) if match else None
 
 
-def _status_details() -> dict[str, object]:
+def _status_details(public_url: str | None = None) -> dict[str, object]:
     global LOGIN_URL
 
     status = tailscale_status()
@@ -137,14 +164,17 @@ def _status_details() -> dict[str, object]:
         suffix = "" if TS_SERVE_HTTPS_PORT == 443 else f":{TS_SERVE_HTTPS_PORT}"
         https_url = f"https://{dns_name}{suffix}/"
 
-    # The Tailscale link (MagicDNS name over HTTPS) is the primary path so the
-    # raw Tailscale IP and its ports stay free for other apps on the same node.
-    # The IP-based URL is only a fallback when the raw TCP rule is enabled.
-    open_url = https_url or http_url
-    ready = bool(online and desktop_ready() and open_url)
+    # The public app URL (used with PUBLIC_DESKTOP=1) needs no Tailscale at all,
+    # so it wins when present.  Otherwise the Tailscale link (MagicDNS name over
+    # HTTPS) is the primary path and keeps the raw Tailscale IP and its ports
+    # free for other apps on the same node; the IP-based URL is only a fallback
+    # when the raw TCP rule is enabled.
+    open_url = public_url or https_url or http_url
+    ready = bool(desktop_ready() and open_url)
 
     return {
         "ready": ready,
+        "public": bool(public_url),
         "desktop": {
             "running": desktop_ready(),
             "engine": "KasmVNC",
@@ -171,6 +201,7 @@ def _status_details() -> dict[str, object]:
             "open": open_url,
             "http": http_url,
             "https": https_url,
+            "public": public_url,
         },
     }
 
@@ -283,11 +314,14 @@ def start_login() -> dict[str, object]:
 class Handler(BaseHTTPRequestHandler):
     server_version = "UbuntuDesktopControl/1.0"
     sys_version = ""
+    protocol_version = "HTTP/1.1"
 
     def log_message(self, fmt: str, *args: object) -> None:
         # Keep supervisor logs useful without logging every browser poll.
         if self.path not in ("/api/status", "/healthz", "/favicon.ico"):
             super().log_message(fmt, *args)
+
+    # ---------------------------------------------------------------- helpers
 
     def _send(self, status: int, body: bytes, content_type: str) -> None:
         self.send_response(status)
@@ -297,6 +331,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Referrer-Policy", "no-referrer")
         self.send_header("X-Frame-Options", "DENY")
+        self.send_header("X-Robots-Tag", "noindex, nofollow")
         self.send_header(
             "Content-Security-Policy",
             "default-src 'self'; img-src 'self' data:; style-src 'unsafe-inline'; "
@@ -304,7 +339,7 @@ class Handler(BaseHTTPRequestHandler):
             "base-uri 'none'; form-action 'self'",
         )
         self.end_headers()
-        if self.command != "HEAD":
+        if self.command != "HEAD" and body:
             self.wfile.write(body)
 
     def _send_json(self, status: int, payload: object) -> None:
@@ -316,53 +351,193 @@ class Handler(BaseHTTPRequestHandler):
         except OSError:
             return b"Ubuntu Cloud Desktop control page is missing.\n"
 
-    def do_HEAD(self) -> None:  # noqa: N802 - stdlib callback name
-        self.do_GET()
+    def _public_url(self) -> str | None:
+        if not PUBLIC_DESKTOP:
+            return None
+        host = self.headers.get("Host")
+        if not host:
+            return None
+        proto = (self.headers.get("X-Forwarded-Proto") or "https").split(",")[0].strip()
+        if proto not in ("http", "https"):
+            proto = "https"
+        return f"{proto}://{host}/"
 
-    def do_GET(self) -> None:  # noqa: N802 - stdlib callback name
-        path = self.path.split("?", 1)[0]
+    def _read_body(self) -> tuple[bytes | None, bool]:
+        """Return (body, ok). ok is False when the body cannot be forwarded."""
+        raw = self.headers.get("Content-Length")
+        if raw is None:
+            if (self.headers.get("Transfer-Encoding") or "").lower().strip() == "chunked":
+                return None, False
+            return b"", True
+        try:
+            length = int(raw)
+        except ValueError:
+            return None, False
+        if length <= 0:
+            return b"", True
+        if length > MAX_REQUEST_BODY:
+            return None, False
+        return self.rfile.read(length), True
+
+    # -------------------------------------------------------------- proxying
+
+    def _proxy_request(self) -> None:
+        if self.headers.get("Upgrade"):
+            self._proxy_upgrade()
+        else:
+            self._proxy_http()
+
+    def _proxy_http(self) -> None:
+        body, ok = self._read_body()
+        if not ok:
+            self._send(413, b"request body too large\n", "text/plain; charset=utf-8")
+            return
+        headers = {k: v for k, v in self.headers.items() if k.lower() not in HOP_BY_HOP}
+        headers["X-Forwarded-Proto"] = "https"
+        headers["X-Forwarded-For"] = self.client_address[0]
+        connection: http.client.HTTPConnection | None = None
+        try:
+            connection = http.client.HTTPConnection(KASM_HOST, KASM_PORT, timeout=30)
+            connection.request(self.command, self.path, body=body, headers=headers)
+            response = connection.getresponse()
+            payload = response.read()
+        except (OSError, http.client.HTTPException):
+            self._send(502, b"desktop is not ready yet\n", "text/plain; charset=utf-8")
+            return
+        finally:
+            if connection is not None:
+                try:
+                    connection.close()
+                except OSError:
+                    pass
+
+        self.send_response_only(response.status, response.reason)
+        for key, value in response.getheaders():
+            if key.lower() in HOP_BY_HOP:
+                continue
+            self.send_header(key, value)
+        self.send_header("Content-Length", str(len(payload)))
+        self.end_headers()
+        if self.command != "HEAD" and payload:
+            self.wfile.write(payload)
+
+    def _proxy_upgrade(self) -> None:
+        """Send the handshake and then pipe bytes both ways (WebSocket)."""
+        try:
+            upstream = socket.create_connection((KASM_HOST, KASM_PORT), timeout=15)
+        except OSError:
+            self._send(502, b"desktop is not ready yet\n", "text/plain; charset=utf-8")
+            return
+        upstream.settimeout(None)
+        try:
+            head = [f"{self.command} {self.path} {self.request_version}"]
+            head.extend(f"{key}: {value}" for key, value in self.headers.items())
+            upstream.sendall(("\r\n".join(head) + "\r\n\r\n").encode("latin-1", "replace"))
+        except OSError:
+            upstream.close()
+            return
+
+        client = self.connection
+        # The connection is taken over by the tunnel; do not parse more requests.
+        self.close_connection = True
+        try:
+            while True:
+                readable, _, _ = select.select([client, upstream], [], [], 300)
+                if not readable:
+                    continue
+                for sock in readable:
+                    try:
+                        data = sock.recv(65536)
+                    except OSError:
+                        return
+                    if not data:
+                        return
+                    target = upstream if sock is client else client
+                    target.sendall(data)
+        except OSError:
+            return
+        finally:
+            try:
+                upstream.close()
+            except OSError:
+                pass
+
+    # -------------------------------------------------------------- handlers
+
+    def _handle_local(self, path: str) -> bool:
         if path == "/healthz":
             if desktop_ready():
                 self._send(200, b"ok\n", "text/plain; charset=utf-8")
             else:
                 self._send(503, b"desktop-starting\n", "text/plain; charset=utf-8")
-            return
+            return True
         if path == "/api/status":
-            self._send_json(200, {"ok": True, "status": _status_details()})
-            return
+            self._send_json(200, {"ok": True, "status": _status_details(self._public_url())})
+            return True
         if path == "/robots.txt":
             self._send(200, b"User-agent: *\nDisallow: /\n", "text/plain; charset=utf-8")
-            return
+            return True
         if path == "/favicon.ico":
             self._send(204, b"", "image/x-icon")
-            return
-        if path == "/":
+            return True
+        if path == "/status" and PUBLIC_DESKTOP:
             self._send(200, self._index(), "text/html; charset=utf-8")
-            return
-        self._send(404, b"not found\n", "text/plain; charset=utf-8")
+            return True
+        if path == "/" and not PUBLIC_DESKTOP:
+            self._send(200, self._index(), "text/html; charset=utf-8")
+            return True
+        return False
+
+    def do_GET(self) -> None:  # noqa: N802 - stdlib callback name
+        self._method("GET")
+
+    def do_HEAD(self) -> None:  # noqa: N802 - stdlib callback name
+        self._method("HEAD")
 
     def do_POST(self) -> None:  # noqa: N802 - stdlib callback name
+        self._method("POST")
+
+    def do_PUT(self) -> None:  # noqa: N802 - stdlib callback name
+        self._method("PUT")
+
+    def do_PATCH(self) -> None:  # noqa: N802 - stdlib callback name
+        self._method("PATCH")
+
+    def do_DELETE(self) -> None:  # noqa: N802 - stdlib callback name
+        self._method("DELETE")
+
+    def do_OPTIONS(self) -> None:  # noqa: N802 - stdlib callback name
+        self._method("OPTIONS")
+
+    def _method(self, method: str) -> None:
         path = self.path.split("?", 1)[0]
-        if path != "/api/tailscale/connect":
-            self._send(404, b"not found\n", "text/plain; charset=utf-8")
+
+        if method == "POST" and path == "/api/tailscale/connect":
+            # Do not read request bodies.  The endpoint has no user-controlled
+            # arguments and only starts the normal Tailscale browser login.
+            content_length = self.headers.get("Content-Length", "0")
+            try:
+                remaining = min(int(content_length), 65536)
+            except ValueError:
+                remaining = 0
+            if remaining > 0:
+                self.rfile.read(remaining)
+            try:
+                payload = start_login()
+            except Exception as exc:  # keep the public endpoint from crashing the server
+                self._send_json(500, {"ok": False, "error": str(exc)})
+                return
+            self._send_json(200 if payload.get("ok") else 502, payload)
             return
 
-        # Do not read request bodies.  The endpoint has no user-controlled
-        # arguments and only starts the normal Tailscale browser login.
-        content_length = self.headers.get("Content-Length", "0")
-        try:
-            remaining = min(int(content_length), 65536)
-        except ValueError:
-            remaining = 0
-        if remaining > 0:
-            self.rfile.read(remaining)
-
-        try:
-            payload = start_login()
-        except Exception as exc:  # keep the public endpoint from crashing the server
-            self._send_json(500, {"ok": False, "error": str(exc)})
+        if method in ("GET", "HEAD") and self._handle_local(path):
             return
-        self._send_json(200 if payload.get("ok") else 502, payload)
+
+        if PUBLIC_DESKTOP:
+            self._proxy_request()
+            return
+
+        self._send(404, b"not found\n", "text/plain; charset=utf-8")
 
 
 class Server(ThreadingHTTPServer):
@@ -372,8 +547,9 @@ class Server(ThreadingHTTPServer):
 
 def main() -> None:
     server = Server(("0.0.0.0", CONTROL_PORT), Handler)
+    mode = "desktop at /, control page at /status" if PUBLIC_DESKTOP else "control page at /"
     print(
-        f"[control] public page on 0.0.0.0:{CONTROL_PORT}; "
+        f"[control] public page on 0.0.0.0:{CONTROL_PORT} ({mode}); "
         f"KasmVNC on {KASM_HOST}:{KASM_PORT}",
         flush=True,
     )

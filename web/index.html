@@ -533,19 +533,25 @@
         const tailscale = status.tailscale || {};
         const urls = status.urls || {};
         const funnel = !!tailscale.funnel;
+        const publicUrl = urls.public || "";
+        const isPublic = Boolean(publicUrl) || funnel;
 
         desktopState.textContent = desktop.running ? "Running" : "Starting";
         tsState.textContent = stateLabel(tailscale.backend_state);
         tsHost.textContent = tailscale.hostname || "Private network";
-        tsLink.textContent = tailscale.dns_name || "—";
-        tsLinkLabel.textContent = funnel ? "Public link (Funnel)" : "Tailscale link";
-        tsLinkNote.textContent = funnel
+        tsLink.textContent = publicUrl || tailscale.dns_name || "—";
+        tsLinkLabel.textContent = publicUrl
+          ? "Public link (CranL)"
+          : funnel
+            ? "Public link (Funnel)"
+            : "Tailscale link";
+        tsLinkNote.textContent = isPublic
           ? "Open VNC uses this public HTTPS link"
           : "Open VNC uses this private HTTPS link";
-        copyLink.hidden = !tailscale.dns_name;
+        copyLink.hidden = !(publicUrl || tailscale.dns_name);
         footerTime.textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
         setPill(
-          status.ready ? (funnel ? "Public link ready" : "Private link ready") : "Setup required",
+          status.ready ? (isPublic ? "Public link ready" : "Private link ready") : "Setup required",
           status.ready ? "ready" : "warn"
         );
 
@@ -559,7 +565,7 @@
           setOpen(urls.open);
           connectBtn.hidden = true;
           showNotice("", "");
-          setPill(funnel ? "Public link ready" : "Private link ready", "ready");
+          setPill(isPublic ? "Public link ready" : "Private link ready", "ready");
           return;
         }
 

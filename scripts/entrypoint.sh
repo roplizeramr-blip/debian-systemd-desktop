@@ -30,6 +30,10 @@ export TS_SERVE_FALLBACK_TCP="${TS_SERVE_FALLBACK_TCP:-0}"
 # `tailscale funnel` (still password protected).  The default, 0, keeps it
 # private to devices signed in to the same tailnet.
 export TS_FUNNEL="${TS_FUNNEL:-0}"
+# PUBLIC_DESKTOP=1 makes the public CranL port serve the KasmVNC desktop at /
+# (control page moves to /status).  0 keeps the public port on the lightweight
+# control page and leaves the desktop reachable only through Tailscale.
+export PUBLIC_DESKTOP="${PUBLIC_DESKTOP:-0}"
 export TS_SERVE_INTERVAL="${TS_SERVE_INTERVAL:-10}"
 
 if ! locale -a 2>/dev/null | grep -qi '^en_US\.utf8$'; then
@@ -75,7 +79,7 @@ for setting in \
 done
 
 echo "[desktop] KasmVNC ${VNC_RESOLUTION} on 127.0.0.1:${KASM_PORT} (display :${KASM_DISPLAY}, auth=${VNC_AUTH})"
-echo "[desktop] public control page on :${CONTROL_PORT}; Tailscale $(if [ "${TS_FUNNEL}" = "1" ]; then echo 'Funnel (public)'; else echo 'Serve (tailnet only)'; fi) HTTPS :${TS_SERVE_HTTPS_PORT} -> 127.0.0.1:${KASM_PORT} (raw TCP :${TS_SERVE_HTTP_PORT})"
+echo "[desktop] public port :${CONTROL_PORT} -> $(if [ "${PUBLIC_DESKTOP}" = "1" ]; then echo 'KasmVNC at / (control page at /status)'; else echo 'control page at /'; fi); Tailscale $(if [ "${TS_FUNNEL}" = "1" ]; then echo 'Funnel (public)'; else echo 'Serve (tailnet only)'; fi) HTTPS :${TS_SERVE_HTTPS_PORT} -> 127.0.0.1:${KASM_PORT} (raw TCP :${TS_SERVE_HTTP_PORT})"
 echo "[desktop] swap enabled=${SWAP_ENABLED} (${SWAP_SIZE_MB} MiB at ${SWAP_FILE})"
 
 # A stable machine-id and boot timestamp make hostnamectl/journalctl useful.
