@@ -42,7 +42,14 @@ args=(
     -noxstartup
 )
 if [ "${VNC_AUTH:-1}" = "0" ]; then
+    # No HTTP password: keep the classic RFB password challenge as the only
+    # protection in front of the desktop.
     args+=(-disableBasicAuth)
+else
+    # The web server already asks for the KasmVNC password with HTTP Basic
+    # auth (and the reverse proxy forwards that challenge), so the extra RFB
+    # password prompt would only ask for the same password twice.
+    args+=(-SecurityTypes None)
 fi
 
 /usr/bin/vncserver "${args[@]}"
