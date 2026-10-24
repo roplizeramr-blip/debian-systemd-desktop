@@ -3,7 +3,7 @@ set -Eeuo pipefail
 
 clear 2>/dev/null || true
 echo "============================================================"
-echo " Ubuntu Cloud Desktop - systemd compatibility layer"
+echo " Debian Cloud Desktop - systemd compatibility layer"
 echo "============================================================"
 echo
 echo "--- PID 1 -------------------------------------------------"

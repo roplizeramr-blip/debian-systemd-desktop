@@ -1,6 +1,6 @@
-# Ubuntu Cloud Desktop — KasmVNC + Tailscale, systemd-compatible
+# Debian Cloud Desktop — KasmVNC + Tailscale, systemd-compatible
 
-A lightweight Ubuntu 24.04 XFCE desktop with Google Chrome, **KasmVNC**,
+A lightweight Debian 13 (trixie) XFCE desktop with Google Chrome, **KasmVNC**,
 **Tailscale**, and a **systemd compatibility layer** backed by Supervisor.
 
 The public CranL port serves only a small control/status page. The desktop
@@ -30,15 +30,16 @@ Linux system, while Supervisor remains the real process manager.
 
 ## Features
 
-- Ubuntu 24.04 LTS, XFCE, Google Chrome from Google's APT repository, Arabic
+- Debian 13 (trixie), XFCE, Google Chrome from Google's APT repository, Arabic
   localization.
 - KasmVNC `1.5.0` from the official release, checksum-pinned and loopback-only.
 - OpenClaw desktop `2026.10.6` preinstalled from the official release,
   checksum-pinned (`--build-arg INSTALL_OPENCLAW=0` skips it), with
   `gnome-keyring` for libsecret and a small `logind` facade so sleep-inhibitor
   calls succeed.
-- Node.js `26.12.1` from the official tarball and Python `3.15` from the
-  deadsnakes PPA, both installed next to the system packages.
+- Node.js `24.22.1` (LTS) from the official tarball and Python `3.15` from the
+  official `python:3.15-slim-trixie` image, both installed next to the system
+  packages.
 - Tailscale in userspace networking mode by default (no `/dev/net/tun` or
   `NET_ADMIN` required); `TS_TUN=kernel` is opt-in.
 - Tailscale Serve publishes KasmVNC on the **MagicDNS link** as
@@ -50,7 +51,7 @@ Linux system, while Supervisor remains the real process manager.
   **Connect Tailscale**, and a login-link fallback.
 - Optional `TS_AUTHKEY` auto-join; otherwise the login link is opened in a new
   tab from the public page and approved by the user.
-- Ubuntu package upgrade at build time; KasmVNC checksum verification.
+- Debian package upgrade at build time; KasmVNC checksum verification.
 - No default swap file. Swap is opt-in (`SWAP_ENABLED=1`) and never blocks boot.
 - `earlyoom` protection, best-effort memory tuning and Chrome flags for a small
   container.
@@ -107,14 +108,14 @@ docker compose up --build -d
 Or with plain Docker:
 
 ```bash
-docker build -t ubuntu-systemd-desktop .
-docker run -d --name ubuntu-systemd-desktop \
+docker build -t debian-systemd-desktop .
+docker run -d --name debian-systemd-desktop \
   -p 3000:3000 \
   --shm-size=1g \
   -e VNC_PW='Ch4ngeM3-strong' \
   -e VNC_RESOLUTION='1440x900' \
   -e TZ='Africa/Cairo' \
-  ubuntu-systemd-desktop
+  debian-systemd-desktop
 ```
 
 **Access flow**
@@ -145,7 +146,7 @@ required on the tailnet as a second layer.
 | `VNC_FRAME_RATE` | `60` | KasmVNC maximum frame rate. Lower it for slow links. |
 | `DESKTOP_PW` | *(unset)* | Linux password for `desktop`. Set privately; no password is baked into the image. If unset, the account stays locked. |
 | `ROOT_PW` | *(unset)* | Root password. Set privately to unlock the root account at start; when unset, root stays locked and `sudo` is the only path. |
-| `TS_HOSTNAME` | `ubuntu-desktop` | Tailscale device name. |
+| `TS_HOSTNAME` | `debian-desktop` | Tailscale device name. |
 | `TS_AUTHKEY` | *(unset)* | Optional Tailscale auth key for automatic join. Never commit it. |
 | `TS_TUN` | `userspace` | `userspace` works without `/dev/net/tun`/NET_ADMIN. Use `kernel` only on a host with a usable TUN device. |
 | `TS_STATE_DIR` | `/var/lib/tailscale` | Tailscale state directory. Ephemeral unless you mount a volume. |
@@ -164,7 +165,7 @@ required on the tailnet as a second layer.
 | `SYSTEMD_DETECT_VIRT` | `none` | Value returned by `systemd-detect-virt`. |
 | `HIDE_CONTAINER` | `0` | If `1`, removes `/.dockerenv`. Optional; not a security boundary. |
 | `CHROME_NO_SANDBOX` | `1` | `1` starts Chrome with `--no-sandbox`, which is required under most container seccomp profiles. Set `0` if your runtime supports the setuid/user-namespace sandbox. |
-| `DESKTOP_HOSTNAME` | `ubuntu-desktop` | Hostname written to `/etc/hostname`. |
+| `DESKTOP_HOSTNAME` | `debian-desktop` | Hostname written to `/etc/hostname`. |
 
 ## Tailscale details
 
@@ -330,8 +331,8 @@ one only after that.
 The workflow `.github/workflows/build.yml` builds `linux/amd64` and pushes:
 
 ```
-ghcr.io/<owner>/ubuntu-systemd-desktop:latest
-ghcr.io/<owner>/ubuntu-systemd-desktop:sha-<commit>
+ghcr.io/<owner>/debian-systemd-desktop:latest
+ghcr.io/<owner>/debian-systemd-desktop:sha-<commit>
 ```
 
 Make the GHCR package public after the first build, or create a GitHub PAT with
@@ -428,7 +429,7 @@ See [docs/TESTING.md](docs/TESTING.md) for expected output and browser checks.
 4. Do not store SSH keys, tokens or personal data in the container.
 5. Keep the public control URL reasonably private; the tailnet is the real
    access boundary.
-6. Rebuild regularly to pick up Ubuntu, Chrome, KasmVNC and Tailscale updates.
+6. Rebuild regularly to pick up Debian, Chrome, KasmVNC and Tailscale updates.
 
 ## License
 

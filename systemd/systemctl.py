@@ -306,7 +306,7 @@ def print_system_status(opts: dict[str, object]) -> int:
     services = [u for u in units if u.endswith(".service")]
     active = sum(1 for u in services if sc.unit_active_state(u)[0] == "active")
     failed = sum(1 for u in services if sc.unit_active_state(u)[0] == "failed")
-    out("● ubuntu-desktop")
+    out("● debian-desktop")
     out(f"    State: {state}")
     out(f"     Units: {len(services)} loaded ({active} active, {failed} failed)")
     out(f"   Default: {sc.get_default_target()}")

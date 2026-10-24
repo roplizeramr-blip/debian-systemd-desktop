@@ -223,10 +223,10 @@ class Manager(dbus.service.Object):
             "KernelRelease": platform.release(),
             "KernelVersion": platform.version(),
             "OperatingSystemPrettyName": self.os_release.get(
-                "PRETTY_NAME", "Ubuntu 24.04 LTS"
+                "PRETTY_NAME", "Debian GNU/Linux 13 (trixie)"
             ),
-            "OperatingSystemCPEName": "cpe:2.3:o:canonical:ubuntu_linux:24.04:*:*:*:*:*:*:*",
-            "HomeURL": "https://www.ubuntu.com/",
+            "OperatingSystemCPEName": "cpe:2.3:o:debian:debian_linux:13.0:*:*:*:*:*:*:*",
+            "HomeURL": "https://www.debian.org/",
             "DefaultTimeoutStartUSec": 90_000_000,
             "DefaultTimeoutStopUSec": 90_000_000,
             "DefaultRestartUSec": 100_000,

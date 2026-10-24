@@ -178,7 +178,7 @@ def main(argv: list[str]) -> int:
         return 0
     if options["header"]:
         print("File: /var/log/journal/compat.log")
-        print(f"Hostname: {os.uname().nodename if hasattr(os, 'uname') else 'ubuntu-desktop'}")
+        print(f"Hostname: {os.uname().nodename if hasattr(os, 'uname') else 'debian-desktop'}")
         print("Boot ID: " + _read_boot_id())
         return 0
 

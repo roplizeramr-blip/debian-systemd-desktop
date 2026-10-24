@@ -41,7 +41,7 @@ def values() -> dict[str, str]:
         "Machine ID": read_first("/etc/machine-id"),
         "Boot ID": read_first("/proc/sys/kernel/random/boot_id"),
         "Virtualization": os.environ.get("SYSTEMD_DETECT_VIRT", "none"),
-        "Operating System": release.get("PRETTY_NAME", "Ubuntu 24.04 LTS"),
+        "Operating System": release.get("PRETTY_NAME", "Debian GNU/Linux 13 (trixie)"),
         "Kernel": f"Linux {platform.release()}",
         "Architecture": platform.machine().replace("x86_64", "x86-64"),
     }

@@ -3,7 +3,7 @@ set -Eeuo pipefail
 
 clear 2>/dev/null || true
 echo "============================================================"
-echo " Ubuntu Cloud Desktop - live system dashboard"
+echo " Debian Cloud Desktop - live system dashboard"
 echo " $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
 echo "============================================================"
 echo

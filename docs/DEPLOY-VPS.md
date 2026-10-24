@@ -4,7 +4,7 @@ Use a VPS when you need more CPU/RAM, persistent storage, outbound internet, or
 active host swap. The image still uses Tailscale for desktop access; the public
 VPS port serves only the control page.
 
-Recommended minimum: 2 vCPU, 4 GiB RAM, 40 GiB disk, Ubuntu 24.04.
+Recommended minimum: 2 vCPU, 4 GiB RAM, 40 GiB disk, Debian 13 or Ubuntu 24.04.
 
 ## 1. Optional: create host swap
 
@@ -30,8 +30,8 @@ The helper adds the entry to `/etc/fstab` and writes
 ## 2. Run the desktop container
 
 ```bash
-git clone https://github.com/roplizeramr-blip/ubuntu-systemd-desktop.git
-cd ubuntu-systemd-desktop
+git clone https://github.com/roplizeramr-blip/debian-systemd-desktop.git
+cd debian-systemd-desktop
 
 VNC_PW='Ch4ngeM3-strong' \
 DESKTOP_PW='Ch4ngeMe!2026' \
@@ -43,9 +43,9 @@ docker compose up -d --build
 Or plain Docker:
 
 ```bash
-docker build -t ubuntu-systemd-desktop .
+docker build -t debian-systemd-desktop .
 
-docker run -d --name ubuntu-desktop \
+docker run -d --name debian-desktop \
   --restart unless-stopped \
   -p 3000:3000 \
   --shm-size=1g \
@@ -54,10 +54,10 @@ docker run -d --name ubuntu-desktop \
   -e VNC_RESOLUTION='1440x900' \
   -e VNC_FRAME_RATE='60' \
   -e TS_AUTHKEY='tskey-auth-...' \
-  -e TS_HOSTNAME='ubuntu-vps' \
+  -e TS_HOSTNAME='debian-vps' \
   -e SWAP_ENABLED='0' \
   -e TZ='Africa/Cairo' \
-  ubuntu-systemd-desktop
+  debian-systemd-desktop
 ```
 
 Open `http://<vps-ip>:3000` to link Tailscale if you did not provide an auth
@@ -74,9 +74,9 @@ front of it. Never expose KasmVNC port `6080`; it is bound to loopback.
 
 ```bash
 docker run ... \
-  -v /srv/ubuntu-desktop/home:/home/desktop \
-  -v /srv/ubuntu-desktop/tailscale:/var/lib/tailscale \
-  ubuntu-systemd-desktop
+  -v /srv/debian-desktop/home:/home/desktop \
+  -v /srv/debian-desktop/tailscale:/var/lib/tailscale \
+  debian-systemd-desktop
 ```
 
 Persisting `/var/lib/tailscale` keeps the node authenticated across redeploys.
@@ -86,11 +86,11 @@ Without it, use `TS_AUTHKEY` or approve a fresh login link.
 
 ```bash
 curl -fsS http://127.0.0.1:3000/healthz
-docker exec ubuntu-desktop supervisorctl status
-docker exec ubuntu-desktop pgrep -a Xvnc
-docker exec ubuntu-desktop tailscale status
-docker exec ubuntu-desktop tailscale serve status
-docker exec ubuntu-desktop free -h
+docker exec debian-desktop supervisorctl status
+docker exec debian-desktop pgrep -a Xvnc
+docker exec debian-desktop tailscale status
+docker exec debian-desktop tailscale serve status
+docker exec debian-desktop free -h
 ```
 
 The swap status file is `/run/desktop-swap-status.json` inside the container.

@@ -1,11 +1,11 @@
-مشروع Ubuntu Cloud Desktop
+مشروع Debian Cloud Desktop
 ==========================
 
-سطح مكتب Ubuntu 24.04 + XFCE + Google Chrome، يعمل بـ KasmVNC ويُفتح بشكل خاص
+سطح مكتب Debian 13 + XFCE + Google Chrome، يعمل بـ KasmVNC ويُفتح بشكل خاص
 عبر Tailscale. المنفذ العام في CranL يعرض صفحة التحكم فقط، وليس سطح المكتب.
 
 المسار:
-C:\Users\East-Sound\Desktop\ubuntu-systemd-desktop
+C:\Users\East-Sound\Desktop\debian-systemd-desktop
 
 الخطوات السريعة
 ---------------
@@ -21,24 +21,24 @@ C:\Users\East-Sound\Desktop\ubuntu-systemd-desktop
    DESKTOP_PW=كلمة-مرور-لينكس-قوية
    VNC_RESOLUTION=1440x900
    VNC_FRAME_RATE=60
-   VNC_USER=desktop
+   VNC_USER=admin
    VNC_AUTH=1
    TZ=Africa/Cairo
-   TS_HOSTNAME=ubuntu-desktop
+   TS_HOSTNAME=debian-desktop
    # اختياري: TS_AUTHKEY=tskey-auth-...
    # اختياري: SWAP_ENABLED=0
 4. افتح رابط التطبيق، ثم اضغط Connect Tailscale.
 5. وافق على رابط الدخول في التبويب الجديد.
 6. بعد ظهور رابط Tailscale (اسم MagicDNS) اضغط Open VNC، وسجّل الدخول باسم
-   desktop وكلمة مرور VNC_PW.
+   admin وكلمة مرور VNC_PW.
 7. لاستخدامه من الهاتف: ثبّت Tailscale على الهاتف، سجّل الدخول إلى نفس
    الشبكة، ثم افتح نفس رابط Tailscale (يتطلب تفعيل MagicDNS وشهادات HTTPS).
 
 بيانات الدخول
 -------------
-VNC user: desktop
+VNC user: admin
 VNC password: القيمة التي وضعتها في VNC_PW
-Linux user: desktop
+Linux user: admin
 Linux password: القيمة التي وضعتها في DESKTOP_PW
 
 لا توجد كلمة مرور افتراضية مكتوبة داخل المستودع. لا ترفع VNC_PW أو

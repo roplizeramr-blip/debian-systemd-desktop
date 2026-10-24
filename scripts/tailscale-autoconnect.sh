@@ -19,7 +19,7 @@ done
 echo "[tailscale] joining tailnet with TS_AUTHKEY"
 timeout 90s tailscale up \
     --auth-key="${TS_AUTHKEY}" \
-    --hostname="${TS_HOSTNAME:-ubuntu-desktop}" \
+    --hostname="${TS_HOSTNAME:-debian-desktop}" \
     --accept-dns=false \
     --ssh=false || {
         echo "[tailscale] automatic join did not complete; the control page can retry"

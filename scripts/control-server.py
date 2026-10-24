@@ -38,7 +38,7 @@ CONTROL_PORT = int(os.environ.get("CONTROL_PORT") or os.environ.get("PORT") or "
 # When set, "/" is the desktop and the control page lives on /status.
 PUBLIC_DESKTOP = os.environ.get("PUBLIC_DESKTOP", "0") != "0"
 TS_SOCKET = os.environ.get("TS_SOCKET", "").strip()
-TS_HOSTNAME = os.environ.get("TS_HOSTNAME", "ubuntu-desktop").strip() or "ubuntu-desktop"
+TS_HOSTNAME = os.environ.get("TS_HOSTNAME", "debian-desktop").strip() or "debian-desktop"
 TS_SERVE_HTTPS_PORT = int(os.environ.get("TS_SERVE_HTTPS_PORT", "443"))
 TS_SERVE_HTTP_PORT = int(os.environ.get("TS_SERVE_HTTP_PORT", "0"))
 TS_FUNNEL = os.environ.get("TS_FUNNEL", "0") != "0"
@@ -312,7 +312,7 @@ def start_login() -> dict[str, object]:
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "UbuntuDesktopControl/1.0"
+    server_version = "DebianDesktopControl/1.0"
     sys_version = ""
     protocol_version = "HTTP/1.1"
 
@@ -349,7 +349,7 @@ class Handler(BaseHTTPRequestHandler):
         try:
             return WEB_INDEX.read_bytes()
         except OSError:
-            return b"Ubuntu Cloud Desktop control page is missing.\n"
+            return b"Debian Cloud Desktop control page is missing.\n"
 
     def _public_url(self) -> str | None:
         if not PUBLIC_DESKTOP:

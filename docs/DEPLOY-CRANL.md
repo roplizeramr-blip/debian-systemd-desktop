@@ -15,7 +15,7 @@ loopback `127.0.0.1:6080` and is reachable only through Tailscale.
    - Health check path: `/healthz`
    - Region: `netherlands-1` (free plan)
 3. Add the environment variables below in the private app settings.
-4. Deploy. The first build installs Ubuntu, Chrome, KasmVNC and Tailscale, so
+4. Deploy. The first build installs Debian, Chrome, KasmVNC and Tailscale, so
    it takes longer than a rebuild of the old noVNC image.
 5. Open the `*.cranl.net` URL after the health check passes.
 
@@ -24,8 +24,8 @@ loopback `127.0.0.1:6080` and is reachable only through Tailscale.
 `.github/workflows/build.yml` builds `linux/amd64` and publishes:
 
 ```
-ghcr.io/<owner>/ubuntu-systemd-desktop:latest
-ghcr.io/<owner>/ubuntu-systemd-desktop:sha-<commit>
+ghcr.io/<owner>/debian-systemd-desktop:latest
+ghcr.io/<owner>/debian-systemd-desktop:sha-<commit>
 ```
 
 Make the GHCR package public, or give CranL a GitHub PAT with `read:packages`.
@@ -43,7 +43,7 @@ Then create the app with the image and port `3000` / health `/healthz`.
 | `VNC_USER` | `desktop` |
 | `VNC_AUTH` | `1` |
 | `TZ` | `Africa/Cairo` |
-| `TS_HOSTNAME` | `ubuntu-desktop` (or a unique tailnet name) |
+| `TS_HOSTNAME` | `debian-desktop` (or a unique tailnet name) |
 
 Do **not** set `KASM_PORT` to anything other than the internal default unless
 you also update the Serve helper and the control server. Do not expose `6080`
@@ -106,7 +106,7 @@ The free plan allows two apps. The old TigerVNC/noVNC app can stay online while
 this one builds:
 
 1. Create the new app with a distinct name (for example
-   `ubuntu-kasmvnc-tailscale`).
+   `debian-kasmvnc-tailscale`).
 2. Wait for the health check and open the control page.
 3. Connect Tailscale and verify **Open VNC** end-to-end.
 4. Only then delete the old app, if desired. Deletion is irreversible and is not

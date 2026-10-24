@@ -1,9 +1,13 @@
 # syntax=docker/dockerfile:1.7
-FROM ubuntu:24.04
+# Debian 13 (trixie) base.  The official python:3.15-slim-trixie image is built
+# on the same release, so its /usr/local tree can be copied in directly instead
+# of compiling Python or adding a third-party repository.
+FROM python:3.15-slim-trixie AS python315
+FROM debian:13
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG KASM_VERSION=1.5.0
-ARG KASM_SHA256=f599fe02e2175b9817b6165f74a5d2bebdc73118dde9181ba3410963bed7ae1e
+ARG KASM_SHA256=80b241de7dfe53bba2b7e1cc5ac8c5246d72271efa16be2d4f76607f30fab1c4
 
 ENV LANG=en_US.UTF-8 \
     LANGUAGE=en_US:en \
@@ -25,8 +29,8 @@ ENV LANG=en_US.UTF-8 \
     SYSTEMD_DETECT_VIRT=none \
     HIDE_CONTAINER=0 \
     CHROME_NO_SANDBOX=1 \
-    DESKTOP_HOSTNAME=ubuntu-desktop \
-    TS_HOSTNAME=ubuntu-desktop \
+    DESKTOP_HOSTNAME=debian-desktop \
+    TS_HOSTNAME=debian-desktop \
     TS_STATE_DIR=/var/lib/tailscale \
     TS_TUN=userspace \
     TS_SERVE_HTTPS_PORT=443 \
@@ -57,10 +61,9 @@ RUN apt-get update \
         librsvg2-common \
     && rm -rf /var/lib/apt/lists/*
 
-# Google Chrome replaces Firefox.  Ubuntu's chromium packages are snap-only and
-# snaps do not run in this image, so Chrome comes from Google's own APT
-# repository.  The repository stays on the image, so a later `apt upgrade` also
-# updates the browser.
+# Google Chrome replaces Firefox.  Debian's chromium package is usable, but the
+# image deliberately ships Google Chrome from Google's own APT repository (the
+# repository stays, so a later `apt upgrade` also updates the browser).
 RUN install -d -m 0755 /etc/apt/keyrings \
     && curl -fsSL https://dl.google.com/linux/linux_signing_key.pub \
         -o /etc/apt/keyrings/google-chrome.asc \
@@ -74,10 +77,10 @@ RUN install -d -m 0755 /etc/apt/keyrings \
     && rm -rf /var/lib/apt/lists/*
 
 # Node.js from the official tarball, pinned and verified by SHA-256.  It is
-# unpacked into /usr/local, so node/npm/npx are the newest release and never
-# collide with anything Ubuntu ships.
-ARG NODE_VERSION=26.12.1
-ARG NODE_SHA256=6170b2d474e1c626f43cff3adc118df9fe3b573258a4fc3d850c8dbc6b079bbd
+# unpacked into /usr/local, so node/npm/npx are the current LTS and never
+# collide with anything Debian ships.
+ARG NODE_VERSION=24.22.1
+ARG NODE_SHA256=6c172a9ab6718f7b801fb5a7bd486af2ee5e32758086a04b84fcce2aa77095e6
 RUN curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
         -o /opt/node.tar.xz \
     && echo "${NODE_SHA256}  /opt/node.tar.xz" | sha256sum -c - \
@@ -86,35 +89,23 @@ RUN curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-l
     && node --version \
     && npm --version
 
-# Latest stable Python from the deadsnakes PPA.  It is installed next to the
-# system interpreter on purpose: apt, Supervisor and the D-Bus facade are
-# linked against /usr/bin/python3 (3.12) and replacing it would break the
-# image.  The new interpreter is available as python3.15 and as `python`.
-ARG PYTHON_VERSION=3.15
-RUN install -d -m 0755 /etc/apt/keyrings \
-    && curl -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xF23C5A6CF475977595C89F51BA6932366A755776&options=mr" \
-        | gpg --dearmor -o /etc/apt/keyrings/deadsnakes.gpg \
-    && chmod 0644 /etc/apt/keyrings/deadsnakes.gpg \
-    && echo "deb [signed-by=/etc/apt/keyrings/deadsnakes.gpg] https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu noble main" \
-        > /etc/apt/sources.list.d/deadsnakes.list \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends \
-        "python${PYTHON_VERSION}" "python${PYTHON_VERSION}-venv" "python${PYTHON_VERSION}-dev" \
-    && (python3.15 -m ensurepip --upgrade >/dev/null 2>&1 \
-        || (curl -fsSL https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py \
-            && python3.15 /tmp/get-pip.py --break-system-packages >/dev/null \
-            && rm -f /tmp/get-pip.py)) \
-    && ln -sfn "/usr/bin/python${PYTHON_VERSION}" /usr/local/bin/python \
+# Python 3.15 from the official python:3.15-slim-trixie image.  It is installed
+# next to the system interpreter on purpose: apt, Supervisor and the D-Bus
+# facade are linked against /usr/bin/python3 (3.13) and replacing it would
+# break the image.  The new interpreter is available as python3.15 and as
+# `python`, and `pip` belongs to it.
+COPY --from=python315 /usr/local /usr/local
+RUN rm -f /usr/local/bin/python /usr/local/bin/python3 /usr/local/bin/pip3 \
+    && ln -sfn /usr/local/bin/python3.15 /usr/local/bin/python \
     && python --version \
-    && python -m pip --version \
-    && rm -rf /var/lib/apt/lists/*
+    && python -m pip --version
 
 # Tailscale (userspace networking mode by default; no TUN/NET_ADMIN needed).
 RUN install -d -m 0755 /usr/share/keyrings \
-    && curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/noble.noarmor.gpg \
+    && curl -fsSL https://pkgs.tailscale.com/stable/debian/trixie.noarmor.gpg \
         -o /usr/share/keyrings/tailscale-archive-keyring.gpg \
     && chmod 0644 /usr/share/keyrings/tailscale-archive-keyring.gpg \
-    && echo "deb [signed-by=/usr/share/keyrings/tailscale-archive-keyring.gpg] https://pkgs.tailscale.com/stable/ubuntu noble main" \
+    && echo "deb [signed-by=/usr/share/keyrings/tailscale-archive-keyring.gpg] https://pkgs.tailscale.com/stable/debian trixie main" \
         > /etc/apt/sources.list.d/tailscale.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends tailscale \
@@ -124,7 +115,7 @@ RUN install -d -m 0755 /usr/share/keyrings \
 # Java/Flash and no separate websockify process.  The checksum is pinned so a
 # changed GitHub asset cannot silently enter the image.
 RUN curl -fsSL \
-        "https://github.com/kasmtech/KasmVNC/releases/download/v${KASM_VERSION}/kasmvncserver_noble_${KASM_VERSION}_amd64.deb" \
+        "https://github.com/kasmtech/KasmVNC/releases/download/v${KASM_VERSION}/kasmvncserver_trixie_${KASM_VERSION}_amd64.deb" \
         -o /tmp/kasmvnc.deb \
     && echo "${KASM_SHA256}  /tmp/kasmvnc.deb" | sha256sum -c - \
     && apt-get update \
@@ -192,7 +183,7 @@ COPY systemd/dbus/org.freedesktop.systemd1.conf /etc/dbus-1/system.d/org.freedes
 # file at the small facade instead of the packaged /bin/false.
 COPY systemd/dbus/org.freedesktop.login1.service /usr/share/dbus-1/system-services/org.freedesktop.login1.service
 COPY scripts/ /usr/local/bin/
-COPY desktop/wallpaper.svg /usr/share/backgrounds/ubuntu-cloud.svg
+COPY desktop/wallpaper.svg /usr/share/backgrounds/debian-cloud.svg
 # Keep custom launchers out of /usr/share/applications so they do not replace
 # the package-provided Chrome/Thunar/Settings entries.  The package entries
 # stay in the application menu; the Arabic launchers are used on the desktop.

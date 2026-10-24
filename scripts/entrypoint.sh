@@ -16,7 +16,7 @@ export SWAP_DIR="${SWAP_DIR:-/var/swap}"
 export SWAP_FILE="${SWAP_FILE:-${SWAP_DIR}/swapfile}"
 export SWAP_SIZE_MB="${SWAP_SIZE_MB:-6144}"
 export SWAP_SPARSE="${SWAP_SPARSE:-1}"
-export TS_HOSTNAME="${TS_HOSTNAME:-ubuntu-desktop}"
+export TS_HOSTNAME="${TS_HOSTNAME:-debian-desktop}"
 export TS_STATE_DIR="${TS_STATE_DIR:-/var/lib/tailscale}"
 export TS_TUN="${TS_TUN:-userspace}"
 # VNC is published on the Tailscale link (MagicDNS name over HTTPS on :443) so

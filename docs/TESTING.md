@@ -89,7 +89,7 @@ Expected highlights:
 - `ps -p 1 -o comm=` → `systemd`
 - `systemctl is-active kasmvnc.service` → `active`
 - `systemctl is-active tailscaled.service` → `active`
-- `hostnamectl` contains `Ubuntu 24.04`
+- `hostnamectl` contains `Debian GNU/Linux 13`
 - `/run/systemd/system` exists
 
 ## 5. D-Bus checks
@@ -120,7 +120,7 @@ gdbus introspect --system --dest org.freedesktop.systemd1 \
 5. Click **Open VNC**; enter user `desktop` and `VNC_PW`.
 6. Confirm:
    - XFCE panel and desktop icons are visible.
-   - The wallpaper is the custom blue “Ubuntu Cloud Desktop” image.
+   - The wallpaper is the custom blue “Debian Cloud Desktop” image.
    - Google Chrome opens and shows the welcome page.
    - Terminal opens.
    - `Systemd Compatibility Info` launches and prints status.

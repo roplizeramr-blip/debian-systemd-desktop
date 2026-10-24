@@ -4,7 +4,7 @@ set -Eeuo pipefail
 export HOME="${HOME:-/home/desktop}"
 export DISPLAY="${DISPLAY:-:1}"
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/1000}"
-WALLPAPER="/usr/share/backgrounds/ubuntu-cloud.svg"
+WALLPAPER="/usr/share/backgrounds/debian-cloud.svg"
 
 set_prop() {
     local channel="$1" prop="$2" type="$3" value="$4"

@@ -33,7 +33,7 @@ check_contains() {
     fi
 }
 
-echo "== Ubuntu Cloud Desktop smoke test =="
+echo "== Debian Cloud Desktop smoke test =="
 check "systemctl exists" command -v systemctl
 check "systemctl --version" systemctl --version
 check "/run/systemd/system exists" test -d /run/systemd/system
@@ -45,7 +45,7 @@ check "control page is active" bash -c '[ "$(systemctl is-active control.service
 check "tailscaled is active" bash -c '[ "$(systemctl is-active tailscaled.service)" = "active" ]'
 check "tailscale-serve is active" bash -c '[ "$(systemctl is-active tailscale-serve.service)" = "active" ]'
 check "detect-virt reports none" bash -c '[ "$(systemd-detect-virt)" = "none" ]'
-check_contains "hostnamectl reports Ubuntu" "Ubuntu" hostnamectl
+check_contains "hostnamectl reports Debian" "Debian" hostnamectl
 check_contains "systemctl list-units includes kasmvnc" "kasmvnc.service" systemctl list-units --type=service --no-pager
 check_contains "Google Chrome is installed" "Google Chrome" google-chrome --version
 check "Node.js is installed" node --version
