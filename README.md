@@ -33,6 +33,10 @@ Linux system, while Supervisor remains the real process manager.
 - Ubuntu 24.04 LTS, XFCE, Firefox from Mozilla's APT repository, Arabic
   localization.
 - KasmVNC `1.5.0` from the official release, checksum-pinned and loopback-only.
+- OpenClaw desktop `2026.10.6` preinstalled from the official release,
+  checksum-pinned (`--build-arg INSTALL_OPENCLAW=0` skips it), with
+  `gnome-keyring` for libsecret and a small `logind` facade so sleep-inhibitor
+  calls succeed.
 - Tailscale in userspace networking mode by default (no `/dev/net/tun` or
   `NET_ADMIN` required); `TS_TUN=kernel` is opt-in.
 - Tailscale Serve publishes KasmVNC on the **MagicDNS link** as
@@ -229,6 +233,13 @@ plaintext password in the image or repository.
 - **Firefox:** software rendering, bounded caches, no telemetry/studies, and
   Arabic localization.
 - **Memory:** `earlyoom` protects KasmVNC/XFCE from a runaway browser tab.
+- **Software rendering on purpose:** the session exports
+  `LIBGL_ALWAYS_SOFTWARE=1`, `WEBKIT_DISABLE_DMABUF_RENDERER=1` and
+  `GTK_A11Y=none`, so Mesa stays on llvmpipe and applications do not log the
+  harmless libEGL/DRI3 and AT-SPI warnings caused by the missing GPU and
+  accessibility bus.
+- **OpenClaw is the heaviest optional piece** (WebKitGTK + GStreamer, roughly
+  +350 MB). Build with `--build-arg INSTALL_OPENCLAW=0` for the lean image.
 - **Swap:** disabled by default; see below.
 
 For a slow link, lower `VNC_RESOLUTION` (for example `1280x800`) or
@@ -385,7 +396,11 @@ See [docs/TESTING.md](docs/TESTING.md) for expected output and browser checks.
   visible. This project does not attempt to defeat security software, anti-cheat
   or licence enforcement.
 - **No snap.** Firefox comes from Mozilla's APT repository instead.
-- **No audio device / no GPU acceleration.** It is a VNC desktop.
+- **No audio device / no GPU acceleration.** It is a VNC desktop; GL clients
+  run on llvmpipe with the DRI3 probe disabled.
+- **`logind` is a stub.** `org.freedesktop.login1` answers `Inhibit()` and the
+  capability queries so applications can register a sleep inhibitor, but there
+  is no session/seat manager behind it (`loginctl` is a shim as well).
 - **Tailscale state is ephemeral by default.** A redeploy requires a fresh login
   link unless you provide `TS_AUTHKEY` or persist `/var/lib/tailscale`.
 - **CranL apps cannot activate swap.** `swapon` needs a capability the runtime

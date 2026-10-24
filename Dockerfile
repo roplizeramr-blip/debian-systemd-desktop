@@ -45,7 +45,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates curl wget gnupg \
         locales tzdata sudo passwd procps psmisc iproute2 net-tools hostname less nano \
-        dbus dbus-x11 \
+        dbus dbus-x11 gnome-keyring \
         python3 python3-dbus python3-gi gir1.2-glib-2.0 \
         supervisor systemd \
         earlyoom kmod ssl-cert \
@@ -102,6 +102,24 @@ RUN curl -fsSL \
     && rm -f /tmp/kasmvnc.deb \
     && rm -rf /var/lib/apt/lists/*
 
+# OpenClaw desktop (Tauri + WebKitGTK).  Same policy as KasmVNC: a pinned
+# release asset verified by checksum, so a changed download cannot slip into
+# the image.  The package pulls WebKitGTK and GStreamer, which is most of the
+# image growth; build with --build-arg INSTALL_OPENCLAW=0 for the lean image.
+ARG OPENCLAW_VERSION=2026.10.6
+ARG OPENCLAW_SHA256=962bef5fb06b24fa24e592a6128137225a04acf9c1f742dd251715e40131263d
+ARG INSTALL_OPENCLAW=1
+RUN if [ "$INSTALL_OPENCLAW" = "1" ]; then \
+        curl -fsSL \
+            "https://github.com/openclaw/openclaw/releases/download/v${OPENCLAW_VERSION}/OpenClaw-${OPENCLAW_VERSION}-amd64.deb" \
+            -o /tmp/openclaw.deb \
+        && echo "${OPENCLAW_SHA256}  /tmp/openclaw.deb" | sha256sum -c - \
+        && apt-get update \
+        && apt-get install -y --no-install-recommends /tmp/openclaw.deb \
+        && rm -f /tmp/openclaw.deb \
+        && rm -rf /var/lib/apt/lists/*; \
+    fi
+
 RUN sed -i 's/^# *en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen \
     && locale-gen
 
@@ -140,6 +158,10 @@ COPY systemd/journalctl.py /opt/systemd-compat/journalctl.py
 COPY systemd/systemd-analyze.py /opt/systemd-compat/systemd-analyze.py
 COPY systemd/dbus/org.freedesktop.systemd1.service /usr/share/dbus-1/system-services/org.freedesktop.systemd1.service
 COPY systemd/dbus/org.freedesktop.systemd1.conf /etc/dbus-1/system.d/org.freedesktop.systemd1.conf
+# logind is absent (Supervisor is PID 1), but its bus name and policy are
+# present, so desktop apps still try to inhibit sleep. Point the activation
+# file at the small facade instead of the packaged /bin/false.
+COPY systemd/dbus/org.freedesktop.login1.service /usr/share/dbus-1/system-services/org.freedesktop.login1.service
 COPY scripts/ /usr/local/bin/
 COPY desktop/wallpaper.svg /usr/share/backgrounds/ubuntu-cloud.svg
 COPY desktop/firefox-syspref.js /etc/firefox/syspref.js
@@ -172,7 +194,7 @@ RUN ln -sfn /usr/bin/supervisord /usr/local/bin/systemd \
         fi; \
         ln -sfn "/usr/local/bin/$cmd" "/usr/bin/$cmd"; \
     done \
-    && chmod 0755 /usr/local/bin/*.sh /usr/local/bin/control-server.py /opt/systemd-compat/*.py
+    && chmod 0755 /usr/local/bin/*.sh /usr/local/bin/*.py /opt/systemd-compat/*.py
 
 # Enable the core units in the same way systemctl enable would.
 RUN mkdir -p /etc/systemd/system/graphical.target.wants \
@@ -203,7 +225,7 @@ RUN update-desktop-database /usr/share/applications >/dev/null 2>&1 || true
 RUN fc-cache -f >/dev/null 2>&1 || true
 
 # Make the compatibility tools executable even if the COPY preserved modes.
-RUN chmod 0755 /opt/systemd-compat/*.py /usr/local/bin/*.sh /usr/local/bin/control-server.py /opt/desktop/tests/*.sh
+RUN chmod 0755 /opt/systemd-compat/*.py /usr/local/bin/*.sh /usr/local/bin/*.py /opt/desktop/tests/*.sh
 
 HEALTHCHECK --interval=30s --timeout=8s --start-period=90s --retries=3 \
     CMD /usr/local/bin/healthcheck.sh
