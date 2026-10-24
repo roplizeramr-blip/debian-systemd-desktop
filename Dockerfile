@@ -43,7 +43,7 @@ ENV LANG=en_US.UTF-8 \
 RUN apt-get update \
     && apt-get -y upgrade \
     && apt-get install -y --no-install-recommends \
-        ca-certificates curl wget gnupg xz-utils \
+        ca-certificates curl wget gnupg xz-utils libatomic1 \
         locales tzdata sudo passwd procps psmisc iproute2 net-tools hostname less nano \
         dbus dbus-x11 gnome-keyring \
         python3 python3-dbus python3-gi gir1.2-glib-2.0 \
