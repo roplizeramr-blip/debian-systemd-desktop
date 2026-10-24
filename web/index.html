@@ -376,9 +376,9 @@
     </header>
 
     <section class="hero" aria-labelledby="hero-title">
-      <p class="eyebrow">Private remote desktop</p>
+      <p class="eyebrow" id="hero-eyebrow">Private remote desktop</p>
       <h2 id="hero-title">Your desktop.<br><span>One secure hop.</span></h2>
-      <p class="lead">
+      <p class="lead" id="hero-lead">
         KasmVNC streams the XFCE desktop with adaptive encoding. Tailscale carries it
         privately over your tailnet, so the VNC port is never exposed publicly.
       </p>
@@ -454,6 +454,8 @@
 
       const el = (id) => document.getElementById(id);
       const openVnc = el("open-vnc");
+      const heroEyebrow = el("hero-eyebrow");
+      const heroLead = el("hero-lead");
       const connectBtn = el("connect-btn");
       const refreshBtn = el("refresh-btn");
       const notice = el("notice");
@@ -549,6 +551,10 @@
           ? "Open VNC uses this public HTTPS link"
           : "Open VNC uses this private HTTPS link";
         copyLink.hidden = !(publicUrl || tailscale.dns_name);
+        heroEyebrow.textContent = isPublic ? "Public remote desktop" : "Private remote desktop";
+        heroLead.textContent = isPublic
+          ? "KasmVNC streams the XFCE desktop with adaptive encoding over HTTPS. The public link below is the only way in, and it always asks for the desktop password."
+          : "KasmVNC streams the XFCE desktop with adaptive encoding. Tailscale carries it privately over your tailnet, so the VNC port is never exposed publicly.";
         footerTime.textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
         setPill(
           status.ready ? (isPublic ? "Public link ready" : "Private link ready") : "Setup required",
