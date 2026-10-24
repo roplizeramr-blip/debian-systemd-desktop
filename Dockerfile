@@ -192,8 +192,14 @@ RUN if [ "$INSTALL_OPENCLAW" = "1" ]; then \
     fi
 
 # Compatibility layer, units, D-Bus facade and desktop assets.
+# The packaged session-bus activation file is a symlink to the system-bus one,
+# which starts the facade as root.  The session bus only accepts connections
+# from its owning user, so that instance can never own org.freedesktop.systemd1
+# and "busctl --user"/"systemctl --user" fall back to the real (unusable)
+# systemd --user.  Ship a session-specific activation file instead.
 RUN install -d -m 0755 /opt/systemd-compat /usr/share/backgrounds \
-        /usr/share/applications /etc/supervisor/conf.d
+        /usr/share/applications /etc/supervisor/conf.d \
+    && rm -f /usr/share/dbus-1/services/org.freedesktop.systemd1.service
 COPY supervisor/supervisord.conf /etc/supervisor/supervisord.conf
 COPY systemd/units/ /etc/systemd/system/
 COPY systemd/systemd_compat.py /opt/systemd-compat/systemd_compat.py
@@ -207,6 +213,7 @@ COPY systemd/loginctl.py /opt/systemd-compat/loginctl.py
 COPY systemd/journalctl.py /opt/systemd-compat/journalctl.py
 COPY systemd/systemd-analyze.py /opt/systemd-compat/systemd-analyze.py
 COPY systemd/dbus/org.freedesktop.systemd1.service /usr/share/dbus-1/system-services/org.freedesktop.systemd1.service
+COPY systemd/dbus/org.freedesktop.systemd1.session.service /usr/share/dbus-1/services/org.freedesktop.systemd1.service
 COPY systemd/dbus/org.freedesktop.systemd1.conf /etc/dbus-1/system.d/org.freedesktop.systemd1.conf
 # logind is absent (Supervisor is PID 1), but its bus name and policy are
 # present, so desktop apps still try to inhibit sleep. Point the activation
@@ -261,6 +268,8 @@ RUN mkdir -p /etc/systemd/system/graphical.target.wants \
 RUN cp /opt/desktop/applications/*.desktop /home/desktop/Desktop/ \
     && chmod 0755 /home/desktop/Desktop/*.desktop \
     && mkdir -p /etc/supervisor/conf.d \
+    && chown root:desktop /etc/supervisor/conf.d \
+    && chmod 0775 /etc/supervisor/conf.d \
     && chown -R desktop:desktop /home/desktop /opt/desktop \
     && install -d -m 0755 /var/log/supervisor /var/log/journal \
     && install -d -m 0700 /var/swap \
