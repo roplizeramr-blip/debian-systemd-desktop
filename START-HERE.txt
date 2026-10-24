@@ -20,11 +20,13 @@ C:\Users\East-Sound\Desktop\debian-systemd-desktop
    VNC_PW=كلمة-مرور-قوية-6-أحرف-على-الأقل
    DESKTOP_PW=كلمة-مرور-لينكس-قوية
    VNC_RESOLUTION=1440x900
-   VNC_FRAME_RATE=60
+   VNC_FRAME_RATE=30
    VNC_USER=admin
    VNC_AUTH=1
    TZ=Africa/Cairo
    TS_HOSTNAME=debian-desktop
+   # اختياري: مفتاح DeepSeek لوكيل Hermes
+   # DEEPSEEK_API_KEY=sk-...
    # اختياري: TS_AUTHKEY=tskey-auth-...
    # اختياري: SWAP_ENABLED=0
 4. افتح رابط التطبيق، ثم اضغط Connect Tailscale.

@@ -20,7 +20,7 @@ ENV LANG=en_US.UTF-8 \
     VNC_RESOLUTION=1440x900 \
     VNC_USER=admin \
     VNC_AUTH=1 \
-    VNC_FRAME_RATE=60 \
+    VNC_FRAME_RATE=30 \
     SWAP_ENABLED=0 \
     SWAP_DIR=/var/swap \
     SWAP_FILE=/var/swap/swapfile \
@@ -47,7 +47,7 @@ ENV LANG=en_US.UTF-8 \
 RUN apt-get update \
     && apt-get -y upgrade \
     && apt-get install -y --no-install-recommends \
-        ca-certificates curl wget gnupg xz-utils libatomic1 \
+        ca-certificates curl wget gnupg xz-utils libatomic1 git \
         locales tzdata sudo passwd procps psmisc iproute2 net-tools hostname less nano \
         dbus dbus-x11 gnome-keyring \
         python3 python3-dbus python3-gi gir1.2-glib-2.0 \
@@ -123,23 +123,10 @@ RUN curl -fsSL \
     && rm -f /tmp/kasmvnc.deb \
     && rm -rf /var/lib/apt/lists/*
 
-# OpenClaw desktop (Tauri + WebKitGTK).  Same policy as KasmVNC: a pinned
-# release asset verified by checksum, so a changed download cannot slip into
-# the image.  The package pulls WebKitGTK and GStreamer, which is most of the
-# image growth; build with --build-arg INSTALL_OPENCLAW=0 for the lean image.
-ARG OPENCLAW_VERSION=2026.10.6
-ARG OPENCLAW_SHA256=962bef5fb06b24fa24e592a6128137225a04acf9c1f742dd251715e40131263d
-ARG INSTALL_OPENCLAW=1
-RUN if [ "$INSTALL_OPENCLAW" = "1" ]; then \
-        curl -fsSL \
-            "https://github.com/openclaw/openclaw/releases/download/v${OPENCLAW_VERSION}/OpenClaw-${OPENCLAW_VERSION}-amd64.deb" \
-            -o /tmp/openclaw.deb \
-        && echo "${OPENCLAW_SHA256}  /tmp/openclaw.deb" | sha256sum -c - \
-        && apt-get update \
-        && apt-get install -y --no-install-recommends /tmp/openclaw.deb \
-        && rm -f /tmp/openclaw.deb \
-        && rm -rf /var/lib/apt/lists/*; \
-    fi
+# OpenClaw was removed from this image on request: the desktop bundle pulled in
+# WebKitGTK + GStreamer (roughly +350 MB) and its Gateway companion ran a pinned
+# Node runtime at idle, which was the single largest CPU consumer in the
+# container.  Nothing here depends on it.
 
 RUN sed -i 's/^# *en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen \
     && locale-gen
@@ -161,34 +148,40 @@ RUN set -eux; \
     install -d -m 0755 -o desktop -g desktop /home/desktop/.cache; \
     install -d -m 0700 -o desktop -g desktop /home/desktop/.vnc
 
-# The desktop package ships a CLI installer but nothing ever runs it, so the
-# app started with "OpenClaw CLI not found" and refused to arm its bundled
-# runtime ("this CLI cannot verify the current runtime pin and service
-# definition").  Run the shipped installer for the desktop user at build time:
-# it fetches its own private Node runtime and installs the CLI under
-# /home/desktop/.openclaw, which is where the app looks for it.  --runtime-only
-# matches what the app itself does; it wires up the Gateway service later, once
-# the systemd user session exists.  npm has a known ENOTEMPTY flake on first
-# install; the retry loop makes the build deterministic.
-ARG OPENCLAW_CLI_VERSION=2026.10.7
-RUN if [ "$INSTALL_OPENCLAW" = "1" ]; then \
+# Hermes Agent (Nous Research), wired to the DeepSeek API.  This is the one
+# piece that is Debian-only: it is installed for the desktop account and
+# configured for the DeepSeek provider here, while the API key stays out of the
+# image and arrives as DEEPSEEK_API_KEY at container start
+# (scripts/hermes-boot.sh).
+#
+# The official installer is the only supported source for it, and it selects and
+# pins its own Python/Node/ffmpeg toolchain under ~/.hermes, so there is no
+# release asset to checksum the way KasmVNC and Chrome are.  The uv download
+# cache is dropped afterwards; the runtimes themselves stay.  The DeepSeek
+# provider ships with Hermes (plugins/model-providers/deepseek), so selecting it
+# is enough — no base_url override is needed.
+#
+# The installer is flaky on a loaded build host, hence the retry loop.  Build
+# with --build-arg INSTALL_HERMES=0 for an image without it.
+ARG INSTALL_HERMES=1
+RUN if [ "$INSTALL_HERMES" = "1" ]; then \
         set -eux; \
-        install -d -m 0755 -o desktop -g desktop /home/desktop/.openclaw; \
         for attempt in 1 2 3; do \
             if runuser -u desktop -- env HOME=/home/desktop \
-                bash /usr/lib/OpenClaw/install-cli.sh \
-                    --prefix /home/desktop/.openclaw \
-                    --version "${OPENCLAW_CLI_VERSION}" \
-                    --runtime-only \
-                    --no-onboard; then \
+                bash -c 'curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --non-interactive --skip-browser --skip-computer-use'; then \
                 break; \
             fi; \
-            rm -rf /home/desktop/.openclaw /home/desktop/.npm; \
-            install -d -m 0755 -o desktop -g desktop /home/desktop/.openclaw; \
+            sleep 10; \
         done; \
-        test -x /home/desktop/.openclaw/bin/openclaw; \
-        ln -sfn /home/desktop/.openclaw/bin/openclaw /usr/local/bin/openclaw; \
-        rm -rf /home/desktop/.npm; \
+        test -x /home/desktop/.local/bin/hermes; \
+        ln -sfn /home/desktop/.local/bin/hermes /usr/local/bin/hermes; \
+        rm -rf /home/desktop/.hermes/cache/uv; \
+        runuser -u desktop -- env HOME=/home/desktop \
+            /home/desktop/.local/bin/hermes config set model.provider deepseek; \
+        runuser -u desktop -- env HOME=/home/desktop \
+            /home/desktop/.local/bin/hermes config set model.default deepseek-v4-pro; \
+        runuser -u desktop -- env HOME=/home/desktop \
+            /home/desktop/.local/bin/hermes --version; \
     fi
 
 # Compatibility layer, units, D-Bus facade and desktop assets.
@@ -271,7 +264,7 @@ RUN cp /opt/desktop/applications/*.desktop /home/desktop/Desktop/ \
     && chown root:desktop /etc/supervisor/conf.d \
     && chmod 0775 /etc/supervisor/conf.d \
     && chown desktop:desktop /home/desktop \
-    && find /home/desktop -mindepth 1 -maxdepth 1 ! -name .openclaw \
+    && find /home/desktop -mindepth 1 -maxdepth 1 \
         -exec chown -R desktop:desktop {} + \
     && chown -R desktop:desktop /opt/desktop \
     && install -d -m 0755 /var/log/supervisor /var/log/journal \
