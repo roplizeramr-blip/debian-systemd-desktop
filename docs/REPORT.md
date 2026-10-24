@@ -6,7 +6,7 @@
 
 **التاريخ:** 23 أكتوبر 2026  
 **المسار المحلي:** `C:\Users\East-Sound\Desktop\ubuntu-systemd-desktop`  
-**الهدف:** سطح مكتب Ubuntu احترافي عبر المتصفح، مع Firefox، وطبقة توافق systemd مبنية فوق Supervisor، جاهز للرفع على GitHub والنشر على CranL.
+**الهدف:** سطح مكتب Ubuntu احترافي عبر المتصفح، مع Google Chrome، وطبقة توافق systemd مبنية فوق Supervisor، جاهز للرفع على GitHub والنشر على CranL.
 
 ---
 
@@ -16,7 +16,7 @@
 
 - صورة Ubuntu 24.04 LTS خفيفة.
 - واجهة XFCE.
-- Firefox من مستودع Mozilla الرسمي، مع دعم اللغة العربية.
+- Google Chrome من مستودع Google الرسمي، مع دعم اللغة العربية.
 - TigerVNC + noVNC للوصول من المتصفح.
 - Supervisor كمدير عمليات حقيقي، وهو PID 1 داخل الحاوية.
 - طبقة توافق systemd تشمل:
@@ -71,7 +71,7 @@ websockify / noVNC  :3000  (0.0.0.0)
 TigerVNC / Xvnc
    │ DISPLAY :1
    ▼
-XFCE + Firefox + التطبيقات
+XFCE + Google Chrome + التطبيقات
    │
    ▼
 Supervisor (PID 1، باسم systemd)
@@ -98,7 +98,7 @@ Supervisor (PID 1، باسم systemd)
 3. Supervisor يبدأ الخدمات حسب الأولوية:
    - journald ثم dbus ثم systemd-dbus ثم xvnc ثم xfce ثم novnc.
 4. websockify يخدم noVNC على المنفذ 3000 ويصل إلى Xvnc محليًا.
-5. إعداد سطح المكتب (الخلفية والأيقونات وإعدادات Firefox) يتم داخل جلسة
+5. إعداد سطح المكتب (الخلفية والأيقونات وإعدادات Google Chrome) يتم داخل جلسة
    XFCE نفسها عبر `dbus-run-session`، وليس كبرنامج Supervisor منفصل.
 
 ---
@@ -198,17 +198,17 @@ Supervisor (PID 1، باسم systemd)
 
 ---
 
-## 6. Firefox واللغة العربية
+## 6. Google Chrome واللغة العربية
 
-- تم تثبيت Firefox من مستودع Mozilla الرسمي، وليس حزمة Snap.
-- تم تثبيت حزمة اللغة العربية الرسمية من Mozilla (langpack) وتفعيل
-  `intl.locale.requested=ar`.
+- تم تثبيت Google Chrome من مستودع Google الرسمي، وليس حزمة Snap.
+- الواجهة عربية عبر خطوط النظام وإعدادات اللغة في الجلسة، ولا حاجة لحزمة
+  لغة منفصلة كما كان الحال مع Firefox.
 - تم ضبط:
   - صفحة بداية محلية: `file:///opt/desktop/welcome.html`
-  - تعطيل التتبع/Telemetry
-  - تعطيل تحديثات Firefox التلقائية داخل الحاوية
-  - تعطيل تسريع العتاد المناسب لبيئة VNC
-- يمكن تشغيل Firefox من أيقونة سطح المكتب أو من قائمة التطبيقات.
+  - تشغيل Chrome عبر `/usr/local/bin/google-chrome` مع `--no-sandbox`
+    (انظر `CHROME_NO_SANDBOX`) و`--disable-dev-shm-usage`
+  - المعالجة البرمجية المناسبة لبيئة VNC (llvmpipe)
+- يمكن تشغيل Google Chrome من أيقونة سطح المكتب أو من قائمة التطبيقات.
 
 ---
 
@@ -220,11 +220,11 @@ Supervisor (PID 1، باسم systemd)
 - TigerVNC بدل حلول ثقيلة.
 - تعطيل compositing في XFCE.
 - تعطيل blanking وDPMS.
-- Firefox بدون تسريع عتاد.
+- Google Chrome بدون تسريع عتاد.
 - تنظيف `/var/lib/apt/lists` و`/var/cache/apt`.
 - لا خدمات غير ضرورية (لا SSH، لا snapd، لا printing).
 
-الذاكرة المتوقعة عند التشغيل: حوالي 400–700 MB مع Firefox مفتوح،
+الذاكرة المتوقعة عند التشغيل: حوالي 400–700 MB مع Google Chrome مفتوح،
 حسب الصفحات. وحدة المعالجة المركزية منخفضة في وضع الخمول.
 
 ---
@@ -247,7 +247,7 @@ Supervisor (PID 1، باسم systemd)
 2. غيّر كلمة مرور المستخدم `desktop` من داخل الطرفية (`passwd`).
 3. لا تضع مفاتيح أو بيانات شخصية داخل سطح المكتب.
 4. اجعل رابط التطبيق خاصًا قدر الإمكان.
-5. أعد بناء الصورة دوريًا لتحديث Ubuntu وFirefox.
+5. أعد بناء الصورة دوريًا لتحديث Ubuntu وGoogle Chrome.
 
 ---
 
@@ -263,7 +263,7 @@ Supervisor (PID 1، باسم systemd)
 ### ما يحتاج بناء الصورة
 
 - بناء الصورة نفسها.
-- تشغيل XFCE وFirefox فعليًا.
+- تشغيل XFCE وGoogle Chrome فعليًا.
 - اختبار D-Bus وsystemctl داخل الحاوية.
 - اختبار noVNC عبر المتصفح.
 - اختبار `/healthz` بعد النشر.
@@ -285,7 +285,7 @@ hostnamectl
 journalctl -n 20
 busctl --system introspect org.freedesktop.systemd1 /org/freedesktop/systemd1
 ps -p 1 -o comm=
-firefox --version
+google-chrome --version
 curl -fsS http://127.0.0.1:3000/healthz
 ```
 
@@ -331,7 +331,7 @@ CranL يمكنه البناء مباشرة من مستودع GitHub باستخد
 
 | الملف | الوظيفة |
 |---|---|
-| `Dockerfile` | بناء الصورة وتثبيت الحزم وFirefox. |
+| `Dockerfile` | بناء الصورة وتثبيت الحزم وGoogle Chrome. |
 | `supervisor/supervisord.conf` | تعريف خدمات Supervisor. |
 | `systemd/systemctl.py` | محاكاة systemctl. |
 | `systemd/systemd_compat.py` | منطق الوحدات وSupervisor المشترك. |
@@ -368,7 +368,7 @@ CranL يمكنه البناء مباشرة من مستودع GitHub باستخد
 
 1. تشغيل GitHub Actions.
 2. نشر التطبيق على CranL.
-3. اختبار `/healthz` وnoVNC وFirefox.
+3. اختبار `/healthz` وnoVNC وGoogle Chrome.
 4. استبدال التطبيق القديم بعد نجاح الجديد.
 
 ---
@@ -413,7 +413,7 @@ reconnect=1&reconnect_delay=1000&show_dot=1&path=websockify
 لا يقبل `-Quality` أو `-CompressLevel`، لذلك لا تُمرَّر له.
 
 كما تم تعطيل compositor وظلال النوافذ وحركات XFCE، وتثبيت ثيم
-`Adwaita-dark` مسطح، وتعطيل blanking/DPMS، وضبط Firefox على
+`Adwaita-dark` مسطح، وتعطيل blanking/DPMS، وضبط Google Chrome على
 `dom.ipc.processCount=2` و`browser.tabs.unloadOnLowMemory=true`
 وتعطيل التسريع العتادي والـtelemetry.
 
@@ -449,7 +449,7 @@ reconnect=1&reconnect_delay=1000&show_dot=1&path=websockify
 - بدأ العطل في 22 أكتوبر 2026.
 
 داخل تطبيقات CranL: DNS يعمل، لكن كل اتصال TCP/ICMP خارجي ينتهي
-بمهلة. الوصول إلى التطبيق من المتصفح يعمل، بينما Firefox و`apt`
+بمهلة. الوصول إلى التطبيق من المتصفح يعمل، بينما Google Chrome و`apt`
 و`curl` داخل سطح المكتب لا تصل إلى الإنترنت. هذا عطل منصة وليس
 خطأً في الصورة.
 

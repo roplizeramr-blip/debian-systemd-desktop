@@ -14,7 +14,7 @@ ENV LANG=en_US.UTF-8 \
     KASM_DISPLAY=1 \
     CONTROL_PORT=3000 \
     VNC_RESOLUTION=1440x900 \
-    VNC_USER=desktop \
+    VNC_USER=admin \
     VNC_AUTH=1 \
     VNC_FRAME_RATE=60 \
     SWAP_ENABLED=0 \
@@ -24,7 +24,7 @@ ENV LANG=en_US.UTF-8 \
     SWAP_SPARSE=1 \
     SYSTEMD_DETECT_VIRT=none \
     HIDE_CONTAINER=0 \
-    FIREFOX_NO_SANDBOX=0 \
+    CHROME_NO_SANDBOX=1 \
     DESKTOP_HOSTNAME=ubuntu-desktop \
     TS_HOSTNAME=ubuntu-desktop \
     TS_STATE_DIR=/var/lib/tailscale \
@@ -43,7 +43,7 @@ ENV LANG=en_US.UTF-8 \
 RUN apt-get update \
     && apt-get -y upgrade \
     && apt-get install -y --no-install-recommends \
-        ca-certificates curl wget gnupg \
+        ca-certificates curl wget gnupg xz-utils \
         locales tzdata sudo passwd procps psmisc iproute2 net-tools hostname less nano \
         dbus dbus-x11 gnome-keyring \
         python3 python3-dbus python3-gi gir1.2-glib-2.0 \
@@ -57,26 +57,57 @@ RUN apt-get update \
         librsvg2-common \
     && rm -rf /var/lib/apt/lists/*
 
-# Firefox from Mozilla's official APT repository.  Ubuntu's firefox package is
-# a snap transitional package and does not work inside a normal container.
-# Mozilla's APT repository ships the browser only, so fetch the matching Arabic
-# language pack from Mozilla's official release directory and install it as a
-# system-wide browser extension.
+# Google Chrome replaces Firefox.  Ubuntu's chromium packages are snap-only and
+# snaps do not run in this image, so Chrome comes from Google's own APT
+# repository.  The repository stays on the image, so a later `apt upgrade` also
+# updates the browser.
 RUN install -d -m 0755 /etc/apt/keyrings \
-    && wget -q https://packages.mozilla.org/apt/repo-signing-key.gpg \
-        -O /etc/apt/keyrings/packages.mozilla.org.asc \
-    && echo "deb [signed-by=/etc/apt/keyrings/packages.mozilla.org.asc] https://packages.mozilla.org/apt mozilla main" \
-        > /etc/apt/sources.list.d/mozilla.list \
-    && printf 'Package: *\nPin: origin packages.mozilla.org\nPin-Priority: 1000\n' \
-        > /etc/apt/preferences.d/mozilla \
+    && curl -fsSL https://dl.google.com/linux/linux_signing_key.pub \
+        -o /etc/apt/keyrings/google-chrome.asc \
+    && chmod 0644 /etc/apt/keyrings/google-chrome.asc \
+    && echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/google-chrome.asc] https://dl.google.com/linux/chrome/deb/ stable main" \
+        > /etc/apt/sources.list.d/google-chrome.list \
     && apt-get update \
-    && apt-get install -y --no-install-recommends firefox \
-    && FIREFOX_VERSION="$(dpkg-query -W -f='${Version}' firefox | sed 's/[~+].*//')" \
-    && test -n "$FIREFOX_VERSION" \
-    && install -d -m 0755 /usr/lib/firefox/browser/extensions \
-    && wget -q "https://ftp.mozilla.org/pub/firefox/releases/${FIREFOX_VERSION}/linux-x86_64/xpi/ar.xpi" \
-        -O /usr/lib/firefox/browser/extensions/langpack-ar@firefox.mozilla.org.xpi \
-    && chmod 0644 /usr/lib/firefox/browser/extensions/langpack-ar@firefox.mozilla.org.xpi \
+    && apt-get install -y --no-install-recommends google-chrome-stable \
+    && sed -i 's|/usr/bin/google-chrome-stable|/usr/local/bin/google-chrome-stable|g' \
+        /usr/share/applications/google-chrome.desktop \
+    && rm -rf /var/lib/apt/lists/*
+
+# Node.js from the official tarball, verified against the published
+# SHASUMS256.txt.  It is unpacked into /usr/local, so node/npm/npx are the
+# newest release and never collide with anything Ubuntu ships.
+ARG NODE_VERSION=26.12.1
+RUN curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" \
+        -o /tmp/node.tar.xz \
+    && curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/SHASUMS256.txt" \
+        -o /tmp/SHASUMS256.txt \
+    && grep -F "node-v${NODE_VERSION}-linux-x64.tar.xz" /tmp/SHASUMS256.txt | sha256sum -c - \
+    && tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1 --no-same-owner \
+    && rm -f /tmp/node.tar.xz /tmp/SHASUMS256.txt \
+    && node --version \
+    && npm --version
+
+# Latest stable Python from the deadsnakes PPA.  It is installed next to the
+# system interpreter on purpose: apt, Supervisor and the D-Bus facade are
+# linked against /usr/bin/python3 (3.12) and replacing it would break the
+# image.  The new interpreter is available as python3.15 and as `python`.
+ARG PYTHON_VERSION=3.15
+RUN install -d -m 0755 /etc/apt/keyrings \
+    && curl -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xF23C5A6CF475977595C89F51BA6932366A755776&options=mr" \
+        | gpg --dearmor -o /etc/apt/keyrings/deadsnakes.gpg \
+    && chmod 0644 /etc/apt/keyrings/deadsnakes.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/deadsnakes.gpg] https://ppa.launchpadcontent.net/deadsnakes/ppa/ubuntu noble main" \
+        > /etc/apt/sources.list.d/deadsnakes.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+        "python${PYTHON_VERSION}" "python${PYTHON_VERSION}-venv" "python${PYTHON_VERSION}-dev" \
+    && (python3.15 -m ensurepip --upgrade >/dev/null 2>&1 \
+        || (curl -fsSL https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py \
+            && python3.15 /tmp/get-pip.py --break-system-packages >/dev/null \
+            && rm -f /tmp/get-pip.py)) \
+    && ln -sfn "/usr/bin/python${PYTHON_VERSION}" /usr/local/bin/python \
+    && python --version \
+    && python -m pip --version \
     && rm -rf /var/lib/apt/lists/*
 
 # Tailscale (userspace networking mode by default; no TUN/NET_ADMIN needed).
@@ -141,9 +172,8 @@ RUN set -eux; \
     install -d -m 0700 -o desktop -g desktop /home/desktop/.vnc
 
 # Compatibility layer, units, D-Bus facade and desktop assets.
-RUN install -d -m 0755 /opt/systemd-compat /usr/share/backgrounds /etc/firefox \
-        /usr/share/applications /home/desktop/.mozilla/firefox/desktop.default-release \
-        /etc/supervisor/conf.d
+RUN install -d -m 0755 /opt/systemd-compat /usr/share/backgrounds \
+        /usr/share/applications /etc/supervisor/conf.d
 COPY supervisor/supervisord.conf /etc/supervisor/supervisord.conf
 COPY systemd/units/ /etc/systemd/system/
 COPY systemd/systemd_compat.py /opt/systemd-compat/systemd_compat.py
@@ -164,12 +194,8 @@ COPY systemd/dbus/org.freedesktop.systemd1.conf /etc/dbus-1/system.d/org.freedes
 COPY systemd/dbus/org.freedesktop.login1.service /usr/share/dbus-1/system-services/org.freedesktop.login1.service
 COPY scripts/ /usr/local/bin/
 COPY desktop/wallpaper.svg /usr/share/backgrounds/ubuntu-cloud.svg
-COPY desktop/firefox-syspref.js /etc/firefox/syspref.js
-COPY desktop/firefox-policies.json /usr/lib/firefox/distribution/policies.json
-COPY desktop/firefox-user.js /home/desktop/.mozilla/firefox/desktop.default-release/user.js
-COPY desktop/profiles.ini /home/desktop/.mozilla/firefox/profiles.ini
 # Keep custom launchers out of /usr/share/applications so they do not replace
-# the package-provided Firefox/Thunar/Settings entries.  The package entries
+# the package-provided Chrome/Thunar/Settings entries.  The package entries
 # stay in the application menu; the Arabic launchers are used on the desktop.
 COPY desktop/applications/ /opt/desktop/applications/
 COPY web/ /opt/desktop/web/
@@ -180,7 +206,9 @@ COPY tests/ /opt/desktop/tests/
 # real binaries are kept as *.real for debugging, but they cannot work without
 # systemd as PID 1.
 RUN ln -sfn /usr/bin/supervisord /usr/local/bin/systemd \
-    && ln -sfn /usr/local/bin/firefox-wrapper.sh /usr/local/bin/firefox \
+    && ln -sfn /usr/local/bin/google-chrome-wrapper.sh /usr/local/bin/google-chrome \
+    && ln -sfn /usr/local/bin/google-chrome-wrapper.sh /usr/local/bin/google-chrome-stable \
+    && ln -sfn /usr/local/bin/google-chrome-wrapper.sh /usr/local/bin/chromium \
     && ln -sfn /opt/systemd-compat/systemctl.py /usr/local/bin/systemctl \
     && ln -sfn /opt/systemd-compat/systemd-detect-virt.py /usr/local/bin/systemd-detect-virt \
     && ln -sfn /opt/systemd-compat/hostnamectl.py /usr/local/bin/hostnamectl \
@@ -209,12 +237,10 @@ RUN mkdir -p /etc/systemd/system/graphical.target.wants \
     && ln -sfn /etc/systemd/system/systemd-dbus.service /etc/systemd/system/multi-user.target.wants/systemd-dbus.service \
     && ln -sfn /etc/systemd/system/graphical.target /etc/systemd/system/default.target
 
-# Desktop launchers, Firefox profile ownership and runtime log directories.
+# Desktop launchers and runtime log directories.
 RUN cp /opt/desktop/applications/*.desktop /home/desktop/Desktop/ \
     && chmod 0755 /home/desktop/Desktop/*.desktop \
-    && mkdir -p /home/desktop/.mozilla/firefox/desktop.default-release /etc/supervisor/conf.d \
-    && install -d -m 0755 -o desktop -g desktop /home/desktop/.mozilla/firefox/desktop.default-release/extensions \
-    && cp /usr/lib/firefox/browser/extensions/langpack-ar@firefox.mozilla.org.xpi /home/desktop/.mozilla/firefox/desktop.default-release/extensions/ \
+    && mkdir -p /etc/supervisor/conf.d \
     && chown -R desktop:desktop /home/desktop /opt/desktop \
     && install -d -m 0755 /var/log/supervisor /var/log/journal \
     && install -d -m 0700 /var/swap \

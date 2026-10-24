@@ -439,7 +439,7 @@
 
     <footer>
       <div>
-        VNC user: <b>desktop</b> · Password: your deployment's <code>VNC_PW</code><br>
+        VNC user: <b id="vnc-user">admin</b> · Password: your deployment's <code>VNC_PW</code><br>
         For the Linux session, use the <code>desktop</code> account and <code>DESKTOP_PW</code>.
       </div>
       <div>
@@ -539,6 +539,8 @@
         const isPublic = Boolean(publicUrl) || funnel;
 
         desktopState.textContent = desktop.running ? "Running" : "Starting";
+        const vncUserEl = el("vnc-user");
+        if (vncUserEl) vncUserEl.textContent = desktop.user || "admin";
         tsState.textContent = stateLabel(tailscale.backend_state);
         tsHost.textContent = tailscale.hostname || "Private network";
         tsLink.textContent = publicUrl || tailscale.dns_name || "—";

@@ -135,13 +135,13 @@ MiscCursorBlinks=FALSE
 ScrollingLines=2000
 EOF
 
-# Firefox is the default browser.
+# Google Chrome is the default browser.
 if command -v xdg-settings >/dev/null 2>&1; then
-    xdg-settings set default-web-browser firefox.desktop >/dev/null 2>&1 || true
+    xdg-settings set default-web-browser google-chrome.desktop >/dev/null 2>&1 || true
 fi
 if command -v xdg-mime >/dev/null 2>&1; then
     for mime in x-scheme-handler/http x-scheme-handler/https text/html; do
-        xdg-mime default firefox.desktop "$mime" >/dev/null 2>&1 || true
+        xdg-mime default google-chrome.desktop "$mime" >/dev/null 2>&1 || true
     done
 fi
 
@@ -149,27 +149,28 @@ if command -v xfdesktop >/dev/null 2>&1; then
     xfdesktop --reload >/dev/null 2>&1 || true
 fi
 
-# Start Firefox once per XFCE session with the local welcome page.  This makes
-# the Arabic UI and the pre-seeded profile deterministic, and gives the user a
-# ready browser instead of an empty desktop.  Set FIREFOX_AUTOSTART=0 to disable.
-if [ "${FIREFOX_AUTOSTART:-1}" = "1" ]; then
-    cat > "$HOME/.config/autostart/firefox.desktop" <<'EOF'
+# Start Chrome once per XFCE session with the local welcome page.  This gives
+# the user a ready browser instead of an empty desktop and makes the first run
+# predictable.  Set CHROME_AUTOSTART=0 to disable.
+if [ "${CHROME_AUTOSTART:-1}" = "1" ]; then
+    cat > "$HOME/.config/autostart/google-chrome.desktop" <<'EOF'
 [Desktop Entry]
 Type=Application
-Name=Firefox
-Name[ar]=فايرفوكس
+Name=Google Chrome
+Name[ar]=جوجل كروم
 Comment=Web Browser
 Comment[ar]=متصفح الويب
-Exec=firefox --new-window file:///opt/desktop/welcome.html
+Exec=google-chrome --new-window file:///opt/desktop/welcome.html
 X-GNOME-Autostart-enabled=true
 OnlyShowIn=XFCE;
 EOF
-    chown desktop:desktop "$HOME/.config/autostart/firefox.desktop" 2>/dev/null || true
-    if ! pgrep -u "${USER:-desktop}" -x firefox >/dev/null 2>&1; then
-        (sleep 1; setsid firefox --new-window file:///opt/desktop/welcome.html >/dev/null 2>&1 &) &
+    chown desktop:desktop "$HOME/.config/autostart/google-chrome.desktop" 2>/dev/null || true
+    if ! pgrep -u "${USER:-desktop}" -x chrome >/dev/null 2>&1; then
+        (sleep 1; setsid google-chrome --new-window file:///opt/desktop/welcome.html >/dev/null 2>&1 &) &
     fi
 else
-    rm -f "$HOME/.config/autostart/firefox.desktop"
+    rm -f "$HOME/.config/autostart/google-chrome.desktop"
 fi
+rm -f "$HOME/.config/autostart/firefox.desktop"
 
 echo "Desktop configuration applied for ${USER:-desktop}."

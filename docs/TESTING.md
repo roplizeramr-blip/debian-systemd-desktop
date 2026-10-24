@@ -121,7 +121,7 @@ gdbus introspect --system --dest org.freedesktop.systemd1 \
 6. Confirm:
    - XFCE panel and desktop icons are visible.
    - The wallpaper is the custom blue “Ubuntu Cloud Desktop” image.
-   - Firefox opens and shows the welcome page.
+   - Google Chrome opens and shows the welcome page.
    - Terminal opens.
    - `Systemd Compatibility Info` launches and prints status.
    - `System Dashboard` shows memory, swap, services and VNC/Tailscale state.
@@ -152,6 +152,6 @@ curl -i http://127.0.0.1:3000/healthz
 | Black screen | XFCE failed | `supervisorctl restart xfce`; `xfce.err.log` |
 | KasmVNC 401 in container | Expected unauthenticated response | Use `-u desktop:VNC_PW`; this is not an error |
 | KasmVNC does not start | missing `.kasmpasswd` or unreadable snakeoil key | check `entrypoint` log; `desktop` must be in `ssl-cert` |
-| Firefox fails to start | sandbox/shm | increase `shm_size`; check `firefox --version`; use `--no-sandbox` only for diagnosis |
+| Chrome fails to start | sandbox/shm | increase `shm_size`; check `google-chrome --version`; the image already passes `--no-sandbox` (see `CHROME_NO_SANDBOX`) |
 | `systemctl` says degraded | core program failed | `supervisorctl status`; check the failing log |
 | D-Bus introspection fails | system bus or service not ready | `supervisorctl status dbus systemd-dbus`; restart `systemd-dbus` |

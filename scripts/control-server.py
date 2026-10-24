@@ -181,7 +181,7 @@ def _status_details(public_url: str | None = None) -> dict[str, object]:
             "host": KASM_HOST,
             "port": KASM_PORT,
             "auth": os.environ.get("VNC_AUTH", "1") != "0",
-            "user": os.environ.get("VNC_USER", "desktop"),
+            "user": os.environ.get("VNC_USER", "admin"),
         },
         "tailscale": {
             "installed": Path(TAILSCALE).exists(),

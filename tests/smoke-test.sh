@@ -47,7 +47,10 @@ check "tailscale-serve is active" bash -c '[ "$(systemctl is-active tailscale-se
 check "detect-virt reports none" bash -c '[ "$(systemd-detect-virt)" = "none" ]'
 check_contains "hostnamectl reports Ubuntu" "Ubuntu" hostnamectl
 check_contains "systemctl list-units includes kasmvnc" "kasmvnc.service" systemctl list-units --type=service --no-pager
-check_contains "Firefox is installed" "Mozilla Firefox" firefox --version
+check_contains "Google Chrome is installed" "Google Chrome" google-chrome --version
+check "Node.js is installed" node --version
+check "npm is installed" npm --version
+check "Python 3.15 is installed" python3.15 --version
 check "D-Bus manager is introspectable" bash -c 'busctl --system introspect org.freedesktop.systemd1 /org/freedesktop/systemd1 >/dev/null 2>&1'
 
 # KasmVNC is loopback-only and requires Basic Auth by default.
@@ -56,7 +59,7 @@ check "KasmVNC config exists" test -s /home/desktop/.vnc/kasmvnc.yaml
 check "KasmVNC credentials exist" test -s /home/desktop/.kasmpasswd
 check "KasmVNC is listening on loopback" bash -c 'code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 4 http://127.0.0.1:6080/); [ "$code" = "401" ]'
 if [ "${VNC_AUTH:-1}" != "0" ] && [ -n "${VNC_PW:-}" ]; then
-    check "KasmVNC Basic Auth accepts VNC_PW" curl -fsS --max-time 5 -u "${VNC_USER:-desktop}:${VNC_PW}" http://127.0.0.1:6080/ >/dev/null
+    check "KasmVNC Basic Auth accepts VNC_PW" curl -fsS --max-time 5 -u "${VNC_USER:-admin}:${VNC_PW}" http://127.0.0.1:6080/ >/dev/null
 fi
 
 # Public control plane.

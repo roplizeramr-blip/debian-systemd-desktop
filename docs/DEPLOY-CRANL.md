@@ -15,7 +15,7 @@ loopback `127.0.0.1:6080` and is reachable only through Tailscale.
    - Health check path: `/healthz`
    - Region: `netherlands-1` (free plan)
 3. Add the environment variables below in the private app settings.
-4. Deploy. The first build installs Ubuntu, Firefox, KasmVNC and Tailscale, so
+4. Deploy. The first build installs Ubuntu, Chrome, KasmVNC and Tailscale, so
    it takes longer than a rebuild of the old noVNC image.
 5. Open the `*.cranl.net` URL after the health check passes.
 

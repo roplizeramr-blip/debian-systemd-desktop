@@ -105,7 +105,7 @@ With host swap and `SWAP_ENABLED=0`, check `swapon --show` on the host instead.
 - `SWAP_SPARSE=0` on a VPS creates a fully allocated file; a sparse file can be
   rejected by the kernel with “Swapfile has holes”.
 - The desktop is CPU-rendered; a VPS with 2 vCPU is enough for XFCE + one
-  Firefox window. More vCPUs help browser workloads, not VNC encoding.
+  Chrome window. More vCPUs help browser workloads, not VNC encoding.
 
 ## 6. Security
 

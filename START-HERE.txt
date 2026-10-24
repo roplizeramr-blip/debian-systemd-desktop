@@ -1,7 +1,7 @@
 مشروع Ubuntu Cloud Desktop
 ==========================
 
-سطح مكتب Ubuntu 24.04 + XFCE + Firefox، يعمل بـ KasmVNC ويُفتح بشكل خاص
+سطح مكتب Ubuntu 24.04 + XFCE + Google Chrome، يعمل بـ KasmVNC ويُفتح بشكل خاص
 عبر Tailscale. المنفذ العام في CranL يعرض صفحة التحكم فقط، وليس سطح المكتب.
 
 المسار:

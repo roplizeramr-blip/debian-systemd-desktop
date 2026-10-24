@@ -1,7 +1,7 @@
 # Ubuntu Cloud Desktop — KasmVNC + Tailscale, systemd-compatible
 
-A lightweight Ubuntu 24.04 XFCE desktop with Firefox, **KasmVNC**, **Tailscale**,
-and a **systemd compatibility layer** backed by Supervisor.
+A lightweight Ubuntu 24.04 XFCE desktop with Google Chrome, **KasmVNC**,
+**Tailscale**, and a **systemd compatibility layer** backed by Supervisor.
 
 The public CranL port serves only a small control/status page. The desktop
 listens on loopback, and Tailscale Serve forwards it to your **tailnet** — there
@@ -30,13 +30,15 @@ Linux system, while Supervisor remains the real process manager.
 
 ## Features
 
-- Ubuntu 24.04 LTS, XFCE, Firefox from Mozilla's APT repository, Arabic
+- Ubuntu 24.04 LTS, XFCE, Google Chrome from Google's APT repository, Arabic
   localization.
 - KasmVNC `1.5.0` from the official release, checksum-pinned and loopback-only.
 - OpenClaw desktop `2026.10.6` preinstalled from the official release,
   checksum-pinned (`--build-arg INSTALL_OPENCLAW=0` skips it), with
   `gnome-keyring` for libsecret and a small `logind` facade so sleep-inhibitor
   calls succeed.
+- Node.js `26.12.1` from the official tarball and Python `3.15` from the
+  deadsnakes PPA, both installed next to the system packages.
 - Tailscale in userspace networking mode by default (no `/dev/net/tun` or
   `NET_ADMIN` required); `TS_TUN=kernel` is opt-in.
 - Tailscale Serve publishes KasmVNC on the **MagicDNS link** as
@@ -50,7 +52,7 @@ Linux system, while Supervisor remains the real process manager.
   tab from the public page and approved by the user.
 - Ubuntu package upgrade at build time; KasmVNC checksum verification.
 - No default swap file. Swap is opt-in (`SWAP_ENABLED=1`) and never blocks boot.
-- `earlyoom` protection, best-effort memory tuning and Firefox prefs for a small
+- `earlyoom` protection, best-effort memory tuning and Chrome flags for a small
   container.
 - Supervisor as PID 1; the container command is `/usr/local/bin/systemd`
   (a symlink to Supervisord) so `/proc/1/comm` reads `systemd`.
@@ -73,7 +75,7 @@ CranL public HTTPS
   tailscaled ── Serve HTTPS (MagicDNS link) ──► 127.0.0.1:6080 (KasmVNC)
                                               │
                                               ▼ DISPLAY :1
-                                    XFCE + Firefox + apps
+                                    XFCE + Chrome + apps
                                               │
                     ┌─────────────────────────┴─────────────────────────┐
                     │ Supervisor (PID 1, named "systemd")               │
@@ -121,7 +123,8 @@ docker run -d --name ubuntu-systemd-desktop \
 2. Click **Connect Tailscale**. A login link opens in a new tab.
 3. Approve the device in Tailscale. The page detects the connection and shows
    the Tailscale link (`<host>.<tailnet>.ts.net`).
-4. Click **Open VNC**, then sign in with user `desktop` and `VNC_PW`. The button
+4. Click **Open VNC**, then sign in with user `VNC_USER` (default `admin`) and
+   `VNC_PW`. The button
    points at `https://<host>.<tailnet>.ts.net/`.
 5. To use a phone or another computer, install Tailscale there, sign into the
    same tailnet, and open the same Tailscale link.
@@ -137,10 +140,11 @@ required on the tailnet as a second layer.
 | `KASM_PORT` | `6080` | KasmVNC listener, always bound to `127.0.0.1`. |
 | `VNC_RESOLUTION` | `1440x900` | Initial desktop geometry; KasmVNC can resize dynamically. |
 | `VNC_PW` | *(required)* | KasmVNC Basic Auth password. Set it privately for every deployment. Minimum 6 characters. |
-| `VNC_USER` | `desktop` | KasmVNC Basic Auth username. |
+| `VNC_USER` | `admin` | KasmVNC Basic Auth username. |
 | `VNC_AUTH` | `1` | `1` requires Basic Auth. `0` disables it; not recommended. |
 | `VNC_FRAME_RATE` | `60` | KasmVNC maximum frame rate. Lower it for slow links. |
 | `DESKTOP_PW` | *(unset)* | Linux password for `desktop`. Set privately; no password is baked into the image. If unset, the account stays locked. |
+| `ROOT_PW` | *(unset)* | Root password. Set privately to unlock the root account at start; when unset, root stays locked and `sudo` is the only path. |
 | `TS_HOSTNAME` | `ubuntu-desktop` | Tailscale device name. |
 | `TS_AUTHKEY` | *(unset)* | Optional Tailscale auth key for automatic join. Never commit it. |
 | `TS_TUN` | `userspace` | `userspace` works without `/dev/net/tun`/NET_ADMIN. Use `kernel` only on a host with a usable TUN device. |
@@ -159,6 +163,7 @@ required on the tailnet as a second layer.
 | `LANG` / `LC_ALL` | `en_US.UTF-8` | Locale; falls back to `C.UTF-8`. |
 | `SYSTEMD_DETECT_VIRT` | `none` | Value returned by `systemd-detect-virt`. |
 | `HIDE_CONTAINER` | `0` | If `1`, removes `/.dockerenv`. Optional; not a security boundary. |
+| `CHROME_NO_SANDBOX` | `1` | `1` starts Chrome with `--no-sandbox`, which is required under most container seccomp profiles. Set `0` if your runtime supports the setuid/user-namespace sandbox. |
 | `DESKTOP_HOSTNAME` | `ubuntu-desktop` | Hostname written to `/etc/hostname`. |
 
 ## Tailscale details
@@ -207,10 +212,11 @@ mount a persistent volume at `/var/lib/tailscale`.
 
 | Item | Default |
 |---|---|
-| VNC user | `desktop` |
+| VNC user | `admin` (`VNC_USER`) |
 | VNC password | Required `VNC_PW`; never baked into the image |
 | Linux user | `desktop` |
 | Linux password | `DESKTOP_PW` (private; no default) |
+| Root password | `ROOT_PW` (private; root stays locked when unset) |
 | sudo | user is in the `sudo` group; password required |
 
 Change the Linux password inside the desktop:
@@ -230,8 +236,8 @@ plaintext password in the image or repository.
 - **Adaptive encoding:** KasmVNC selects compression based on the link; the
   maximum frame rate is configurable.
 - **XFCE:** compositor, shadows, animations, blanking and DPMS are disabled.
-- **Firefox:** software rendering, bounded caches, no telemetry/studies, and
-  Arabic localization.
+- **Chrome:** software rendering, bounded caches, no first-run/restore bubbles,
+  and Arabic support through the system fonts.
 - **Memory:** `earlyoom` protects KasmVNC/XFCE from a runaway browser tab.
 - **Software rendering on purpose:** the session exports
   `LIBGL_ALWAYS_SOFTWARE=1`, `WEBKIT_DISABLE_DMABUF_RENDERER=1` and
@@ -352,7 +358,9 @@ hostnamectl
 journalctl -n 20
 busctl --system introspect org.freedesktop.systemd1 /org/freedesktop/systemd1
 ps -p 1 -o comm=
-firefox --version
+google-chrome --version
+node --version
+python --version
 curl -fsS http://127.0.0.1:3000/healthz
 curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:6080/
 tailscale status
@@ -378,7 +386,7 @@ See [docs/TESTING.md](docs/TESTING.md) for expected output and browser checks.
 │   ├── units/
 │   └── dbus/
 ├── scripts/                 # KasmVNC, Tailscale, control server, startup
-├── desktop/                 # wallpaper, Firefox defaults, launchers
+├── desktop/                 # wallpaper, browser defaults, launchers
 ├── web/                     # public control page + internal welcome page
 ├── tests/
 ├── docs/
@@ -395,7 +403,10 @@ See [docs/TESTING.md](docs/TESTING.md) for expected output and browser checks.
   `HIDE_CONTAINER=1`), `/proc/1/cgroup`, overlayfs and the Docker network remain
   visible. This project does not attempt to defeat security software, anti-cheat
   or licence enforcement.
-- **No snap.** Firefox comes from Mozilla's APT repository instead.
+- **No snap.** Google Chrome comes from Google's APT repository instead.
+- **Python 3.15 is the newest interpreter, not the system one.** `/usr/bin/python3`
+  stays 3.12 because apt, Supervisor and the D-Bus facade are linked against it;
+  the new interpreter is `python3.15` (also `python`).
 - **No audio device / no GPU acceleration.** It is a VNC desktop; GL clients
   run on llvmpipe with the DRI3 probe disabled.
 - **`logind` is a stub.** `org.freedesktop.login1` answers `Inhibit()` and the
@@ -417,7 +428,7 @@ See [docs/TESTING.md](docs/TESTING.md) for expected output and browser checks.
 4. Do not store SSH keys, tokens or personal data in the container.
 5. Keep the public control URL reasonably private; the tailnet is the real
    access boundary.
-6. Rebuild regularly to pick up Ubuntu, Firefox, KasmVNC and Tailscale updates.
+6. Rebuild regularly to pick up Ubuntu, Chrome, KasmVNC and Tailscale updates.
 
 ## License
 
@@ -429,12 +440,13 @@ MIT. See [LICENSE](LICENSE).
 
 1. ارفع المجلد إلى GitHub، ثم أنشئ تطبيقًا على CranL من المستودع باستخدام
    `build: dockerfile` والمنفذ `3000` ومسار الصحة `/healthz`.
-2. اضبط `VNC_PW` بكلمة مرور قوية، واضبط `DESKTOP_PW` إن أردت تسجيل الدخول
-   إلى لينكس. لا تضع أي أسرار في المستودع.
+2. اضبط `VNC_USER` (الافتراضي `admin`) و`VNC_PW` بكلمة مرور قوية، واضبط
+   `DESKTOP_PW` و`ROOT_PW` إن أردت تسجيل الدخول إلى لينكس أو الجذر. لا تضع أي
+   أسرار في المستودع.
 3. افتح رابط التطبيق، اضغط **Connect Tailscale**، ووافق على رابط الدخول في
    التبويب الجديد.
 4. بعد ظهور رابط Tailscale (اسم MagicDNS)، اضغط **Open VNC** ثم سجّل الدخول
-   باسم `desktop` وكلمة مرور `VNC_PW`. للعمل يجب تفعيل MagicDNS وشهادات HTTPS
+   باسم `VNC_USER` (الافتراضي `admin`) وكلمة مرور `VNC_PW`. للعمل يجب تفعيل MagicDNS وشهادات HTTPS
    لشبكتك من لوحة تحكم Tailscale.
 5. لاستخدامه من الهاتف أو جهاز آخر، ثبّت Tailscale هناك وسجّل الدخول إلى نفس
    الشبكة، ثم افتح نفس رابط Tailscale. عنوان الـIP ومنافذه تبقى حرة لتطبيقاتك.

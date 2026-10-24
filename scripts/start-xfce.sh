@@ -17,11 +17,9 @@ export NO_AT_BRIDGE="1"
 export LIBGL_ALWAYS_SOFTWARE="${LIBGL_ALWAYS_SOFTWARE:-1}"
 export WEBKIT_DISABLE_DMABUF_RENDERER="${WEBKIT_DISABLE_DMABUF_RENDERER:-1}"
 export GTK_A11Y="${GTK_A11Y:-none}"
-export MOZ_ENABLE_WAYLAND="0"
-# Firefox's content sandbox can fail under restrictive container seccomp
-# profiles.  The parent sandbox remains enabled; set this to 0 to re-enable
-# the content sandbox if your runtime supports user namespaces.
-export MOZ_DISABLE_CONTENT_SANDBOX="${MOZ_DISABLE_CONTENT_SANDBOX:-1}"
+# Chrome is always started through /usr/local/bin/google-chrome, which adds the
+# container-friendly flags; see scripts/google-chrome-wrapper.sh and
+# CHROME_NO_SANDBOX in the image environment.
 
 mkdir -p "$XDG_RUNTIME_DIR"
 chmod 0700 "$XDG_RUNTIME_DIR" 2>/dev/null || true

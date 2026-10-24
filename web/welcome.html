@@ -44,7 +44,7 @@
   <h1>Welcome to your Ubuntu Cloud Desktop</h1>
   <p class="lead">
     This is a real XFCE X11 session served by KasmVNC and reachable privately
-    through Tailscale. Firefox, a terminal, the file manager and a
+    through Tailscale. Google Chrome, a terminal, the file manager and a
     systemd-compatible service layer are installed. Use it like a normal Ubuntu
     workstation.
   </p>
@@ -52,7 +52,7 @@
   <div>
     <span class="tag">Ubuntu 24.04</span>
     <span class="tag">XFCE</span>
-    <span class="tag">Firefox</span>
+    <span class="tag">Google Chrome</span>
     <span class="tag">KasmVNC</span>
     <span class="tag">Tailscale</span>
     <span class="tag">Supervisor</span>
@@ -64,7 +64,7 @@
     <section class="card">
       <h2>Quick start</h2>
       <ul>
-        <li>Double-click <b>Firefox</b> to browse the web.</li>
+        <li>Double-click <b>Google Chrome</b> to browse the web.</li>
         <li>Open <b>Terminal</b> for a shell.</li>
         <li>Use <b>Systemd Compatibility Info</b> to inspect the service layer.</li>
         <li>Change the Linux password with <code>sudo passwd desktop</code>.</li>
@@ -107,7 +107,7 @@ journalctl -n 30</pre>
       <h2>Useful commands</h2>
       <pre>sudo apt update
 sudo apt install git
-firefox --version
+google-chrome --version
 systemctl status kasmvnc
 systemctl status tailscaled
 systemctl restart xfce
@@ -133,7 +133,7 @@ free -h</pre>
     </section>
   </div>
 
-  <footer>Ubuntu Cloud Desktop · built with Supervisor, XFCE, Firefox, KasmVNC and Tailscale.</footer>
+  <footer>Ubuntu Cloud Desktop · built with Supervisor, XFCE, Google Chrome, KasmVNC and Tailscale.</footer>
 </main>
 </body>
 </html>

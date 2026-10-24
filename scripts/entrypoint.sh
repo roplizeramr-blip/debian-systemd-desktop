@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 export VNC_PW="${VNC_PW:-}"
-export VNC_USER="${VNC_USER:-desktop}"
+export VNC_USER="${VNC_USER:-admin}"
 export VNC_AUTH="${VNC_AUTH:-1}"
 export VNC_RESOLUTION="${VNC_RESOLUTION:-1440x900}"
 export VNC_FRAME_RATE="${VNC_FRAME_RATE:-60}"
@@ -176,6 +176,19 @@ if [ -n "${DESKTOP_PW:-}" ]; then
     fi
 else
     echo "[desktop] DESKTOP_PW is not set; Linux account desktop remains locked"
+fi
+
+# Root login.  The image ships with the root account locked; supply ROOT_PW in
+# the deployment environment to set (and unlock) it at start.  Leaving it unset
+# keeps the default locked account and keeps `sudo` as the only path to root.
+if [ -n "${ROOT_PW:-}" ]; then
+    if printf 'root:%s\n' "$ROOT_PW" | chpasswd 2>/dev/null; then
+        echo "[desktop] root password updated from ROOT_PW"
+    else
+        echo "[desktop] WARNING: could not set the root password from ROOT_PW"
+    fi
+else
+    echo "[desktop] ROOT_PW is not set; root login stays locked"
 fi
 
 # /dev/log is expected by syslog-style applications.  The journald shim
