@@ -30,20 +30,12 @@ ENV LANG=en_US.UTF-8 \
     HIDE_CONTAINER=0 \
     CHROME_NO_SANDBOX=1 \
     DESKTOP_HOSTNAME=debian-desktop \
-    TS_HOSTNAME=debian-desktop \
-    TS_STATE_DIR=/var/lib/tailscale \
-    TS_TUN=userspace \
-    TS_SERVE_HTTPS_PORT=443 \
-    TS_SERVE_HTTP_PORT=0 \
-    TS_SERVE_FALLBACK_TCP=0 \
-    TS_FUNNEL=0 \
     PUBLIC_DESKTOP=0 \
-    TS_SERVE_INTERVAL=10 \
     DEBIAN_FRONTEND=noninteractive
 
 # Keep the base current.  The desktop is intentionally lean: KasmVNC replaces
-# TigerVNC + noVNC + websockify, and Tailscale supplies private access without
-# publishing a VNC port.  ssl-cert is required by KasmVNC's bundled web server.
+# TigerVNC + noVNC + websockify, and it is the only HTTP server in the image.
+# ssl-cert is required by KasmVNC's bundled web server.
 RUN apt-get update \
     && apt-get -y upgrade \
     && apt-get install -y --no-install-recommends \
@@ -100,17 +92,6 @@ RUN rm -f /usr/local/bin/python /usr/local/bin/python3 /usr/local/bin/pip3 \
     && python --version \
     && python -m pip --version
 
-# Tailscale (userspace networking mode by default; no TUN/NET_ADMIN needed).
-RUN install -d -m 0755 /usr/share/keyrings \
-    && curl -fsSL https://pkgs.tailscale.com/stable/debian/trixie.noarmor.gpg \
-        -o /usr/share/keyrings/tailscale-archive-keyring.gpg \
-    && chmod 0644 /usr/share/keyrings/tailscale-archive-keyring.gpg \
-    && echo "deb [signed-by=/usr/share/keyrings/tailscale-archive-keyring.gpg] https://pkgs.tailscale.com/stable/debian trixie main" \
-        > /etc/apt/sources.list.d/tailscale.list \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends tailscale \
-    && rm -rf /var/lib/apt/lists/*
-
 # KasmVNC 1.5.0: a single HTTP/WebSocket server with adaptive encoding, no
 # Java/Flash and no separate websockify process.  The checksum is pinned so a
 # changed GitHub asset cannot silently enter the image.
@@ -147,42 +128,6 @@ RUN set -eux; \
     install -d -m 0755 -o desktop -g desktop /home/desktop/.config; \
     install -d -m 0755 -o desktop -g desktop /home/desktop/.cache; \
     install -d -m 0700 -o desktop -g desktop /home/desktop/.vnc
-
-# Hermes Agent (Nous Research), wired to the DeepSeek API.  This is the one
-# piece that is Debian-only: it is installed for the desktop account and
-# configured for the DeepSeek provider here, while the API key stays out of the
-# image and arrives as DEEPSEEK_API_KEY at container start
-# (scripts/hermes-boot.sh).
-#
-# The official installer is the only supported source for it, and it selects and
-# pins its own Python/Node/ffmpeg toolchain under ~/.hermes, so there is no
-# release asset to checksum the way KasmVNC and Chrome are.  The uv download
-# cache is dropped afterwards; the runtimes themselves stay.  The DeepSeek
-# provider ships with Hermes (plugins/model-providers/deepseek), so selecting it
-# is enough — no base_url override is needed.
-#
-# The installer is flaky on a loaded build host, hence the retry loop.  Build
-# with --build-arg INSTALL_HERMES=0 for an image without it.
-ARG INSTALL_HERMES=1
-RUN if [ "$INSTALL_HERMES" = "1" ]; then \
-        set -eux; \
-        for attempt in 1 2 3; do \
-            if runuser -u desktop -- env HOME=/home/desktop \
-                bash -c 'curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --non-interactive --skip-browser --skip-computer-use'; then \
-                break; \
-            fi; \
-            sleep 10; \
-        done; \
-        test -x /home/desktop/.local/bin/hermes; \
-        ln -sfn /home/desktop/.local/bin/hermes /usr/local/bin/hermes; \
-        rm -rf /home/desktop/.hermes/cache/uv; \
-        runuser -u desktop -- env HOME=/home/desktop \
-            /home/desktop/.local/bin/hermes config set model.provider deepseek; \
-        runuser -u desktop -- env HOME=/home/desktop \
-            /home/desktop/.local/bin/hermes config set model.default deepseek-v4-pro; \
-        runuser -u desktop -- env HOME=/home/desktop \
-            /home/desktop/.local/bin/hermes --version; \
-    fi
 
 # Compatibility layer, units, D-Bus facade and desktop assets.
 # The packaged session-bus activation file is a symlink to the system-bus one,
@@ -250,8 +195,6 @@ RUN mkdir -p /etc/systemd/system/graphical.target.wants \
     && ln -sfn /etc/systemd/system/kasmvnc.service /etc/systemd/system/graphical.target.wants/kasmvnc.service \
     && ln -sfn /etc/systemd/system/xfce.service /etc/systemd/system/graphical.target.wants/xfce.service \
     && ln -sfn /etc/systemd/system/control.service /etc/systemd/system/graphical.target.wants/control.service \
-    && ln -sfn /etc/systemd/system/tailscaled.service /etc/systemd/system/graphical.target.wants/tailscaled.service \
-    && ln -sfn /etc/systemd/system/tailscale-serve.service /etc/systemd/system/graphical.target.wants/tailscale-serve.service \
     && ln -sfn /etc/systemd/system/dbus.service /etc/systemd/system/multi-user.target.wants/dbus.service \
     && ln -sfn /etc/systemd/system/systemd-journald.service /etc/systemd/system/multi-user.target.wants/systemd-journald.service \
     && ln -sfn /etc/systemd/system/systemd-dbus.service /etc/systemd/system/multi-user.target.wants/systemd-dbus.service \
@@ -269,8 +212,6 @@ RUN cp /opt/desktop/applications/*.desktop /home/desktop/Desktop/ \
     && chown -R desktop:desktop /opt/desktop \
     && install -d -m 0755 /var/log/supervisor /var/log/journal \
     && install -d -m 0700 /var/swap \
-    && install -d -m 0700 /var/lib/tailscale \
-    && install -d -m 0755 /var/run/tailscale \
     && install -d -m 0755 /opt/systemd-compat
 RUN update-desktop-database /usr/share/applications >/dev/null 2>&1 || true
 RUN fc-cache -f >/dev/null 2>&1 || true

@@ -86,8 +86,6 @@ CORE_UNITS: dict[str, str] = {
     "kasmvnc.service": "kasmvnc",
     "xfce.service": "xfce",
     "control.service": "control",
-    "tailscaled.service": "tailscaled",
-    "tailscale-serve.service": "tailscale-serve",
 }
 CORE_PROGRAMS = set(CORE_UNITS.values())
 
@@ -111,8 +109,6 @@ TARGET_DEPS: dict[str, list[str]] = {
         "kasmvnc.service",
         "xfce.service",
         "control.service",
-        "tailscaled.service",
-        "tailscale-serve.service",
     ],
     "multi-user.target": [
         "dbus.service",
